@@ -1,4 +1,4 @@
-db.sqlite3
-__pycache__/
-*/__pycache__/
-**/__pycache__/
+cnc_repas/db.sqlite3
+cnc_repas/__pycache__/
+cnc_repas/*/__pycache__/
+cnc_repas/**/__pycache__/
