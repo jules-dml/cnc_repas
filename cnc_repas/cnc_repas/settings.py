@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-nnmvhb&3$huk+_$u$60((=anh=j$2w2#4tv10%zg8o7gl2l#xt
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['repas.cncholonge.fr', 'www.repas.cncholonge.fr', '127.0.0.1']
 
 
 # Application definition
