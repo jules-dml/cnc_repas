@@ -1,6 +1,7 @@
 from django.contrib.auth.models import User, AbstractUser
 from django.contrib.auth import get_user_model
 from django.db import models
+from django.conf import settings
 
 class CustomUser(AbstractUser):
     class Status(models.TextChoices):
@@ -28,3 +29,22 @@ class Profile(models.Model):
     
     def __str__(self):
         return f"{self.user.username}'s profile"
+    
+class Reservation(models.Model):
+    STATUS_CHOICES = (
+        ('pending', 'En attente'),
+        ('approved', 'Approuvé'),
+        ('denied', 'Refusé'),
+    )
+    
+    # Fix: Use settings.AUTH_USER_MODEL instead of User
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='reservations')
+    date = models.DateField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        unique_together = ['user', 'date']
+        
+    def __str__(self):
+        return f"{self.user.username} - {self.date}"

@@ -106,6 +106,8 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'fr'
 
+LOGIN_URL = 'my-login'
+
 TIME_ZONE = 'UTC'
 
 USE_I18N = True

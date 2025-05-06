@@ -1,0 +1,32 @@
+.header {
+    background-color: #f8f9fa;
+    padding: 15px 0;
+    margin-bottom: 20px;
+}
+
+.calendar-day {
+    border: 1px solid #ddd;
+    padding: 10px;
+    min-height: 150px;
+    margin-bottom: 10px;
+}
+
+.calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.reservation-toggle {
+    margin-top: 10px;
+}
+
+.form-check-label {
+    font-weight: 500;
+}
+
+.reservation-status {
+    margin-top: 15px;
+    font-style: italic;
+}
