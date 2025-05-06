@@ -137,3 +137,13 @@ body {
         padding: 1.5rem;
     }
 }
+
+/* App Icon */
+.app-icon {
+    width: 120px;
+    height: auto;
+    margin-bottom: 15px;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+}
