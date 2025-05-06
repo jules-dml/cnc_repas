@@ -7,7 +7,7 @@
 .calendar-day {
     border: 1px solid #ddd;
     padding: 10px;
-    min-height: 150px;
+    min-height: 200px;
     margin-bottom: 10px;
 }
 
@@ -29,4 +29,20 @@
 .reservation-status {
     margin-top: 15px;
     font-style: italic;
+}
+
+.user-list {
+    margin-bottom: 30px;
+}
+
+.user-item {
+    padding: 8px;
+    border-bottom: 1px solid #eee;
+}
+
+.user-registration {
+    background-color: #f8f9fa;
+    padding: 5px;
+    margin: 5px 0;
+    border-radius: 4px;
 }

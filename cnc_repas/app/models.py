@@ -31,13 +31,6 @@ class Profile(models.Model):
         return f"{self.user.username}'s profile"
     
 class Reservation(models.Model):
-    STATUS_CHOICES = (
-        ('pending', 'En attente'),
-        ('approved', 'Approuvé'),
-        ('denied', 'Refusé'),
-    )
-    
-    # Fix: Use settings.AUTH_USER_MODEL instead of User
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='reservations')
     date = models.DateField()
     created_at = models.DateTimeField(auto_now_add=True)

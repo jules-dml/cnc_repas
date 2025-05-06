@@ -1,6 +1,6 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
-from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
 import json
@@ -11,8 +11,11 @@ from django.contrib import messages
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.forms import PasswordChangeForm
 from django.utils import timezone
-from django.contrib.auth.models import User
 from django.contrib.auth import get_user_model
+from django.views.decorators.csrf import csrf_exempt
+
+
+from .models import CustomUser
 
 
 def homepage(request):
@@ -31,6 +34,10 @@ def my_login(request):
         form = LoginForm()
     
     return render(request, 'app/my-login.html', {'loginform': form})
+
+def manager_dashboard(request):
+    """Render the manager dashboard page"""
+    return render(request, 'app/manager/dashboard.html', {'title': 'Manager Dashboard', 'users': CustomUser.objects.all()})
 
 
 @login_required
@@ -181,3 +188,62 @@ def user_reservations_api(request):
             'success': False,
             'error': str(e)
         })
+
+
+def get_week_reservations(request):
+    try:
+        start_date_str = request.GET.get('start_date')
+        # Convert start_date string to a datetime object
+        start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+        
+        # Calculate end date (7 days after start date)
+        end_date = start_date + timedelta(days=6)
+        
+        # Get all reservations within the date range
+        reservations = Reservation.objects.filter(
+            date__gte=start_date,
+            date__lte=end_date
+        ).select_related('user')
+        
+        # Format reservations data for the frontend
+        formatted_reservations = {}
+        for reservation in reservations:
+            date_str = reservation.date.strftime('%Y-%m-%d')
+            if date_str not in formatted_reservations:
+                formatted_reservations[date_str] = []
+            
+            formatted_reservations[date_str].append({
+                'user_id': reservation.user.id,
+                'user_name': str(reservation.user.name),
+                'status': reservation.user.status
+            })
+        
+        return JsonResponse({'success': True, 'reservations': formatted_reservations})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+    
+
+@csrf_exempt
+@require_POST
+def create_reservation(request):
+    try:
+        data = json.loads(request.body)
+        date = data.get('date')
+        user_id = data.get('user_id')
+        
+        # Validate required fields
+        if not date or not user_id:
+            return JsonResponse({'success': False, 'error': 'Date and user ID are required'})
+        
+        # Get the user
+        user = get_object_or_404(CustomUser, id=user_id)
+        
+        # Create or update the reservation
+        reservation, created = Reservation.objects.update_or_create(
+            user=user,
+            date=date,
+        )
+        
+        return JsonResponse({'success': True})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
