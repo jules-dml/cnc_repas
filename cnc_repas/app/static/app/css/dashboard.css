@@ -1,48 +1,272 @@
+:root {
+    --primary-color: #0d6efd;
+    --secondary-color: #ececec;
+    --border-color: #dee2e6;
+    --text-color: #212529;
+    --danger-color: #dc3545;
+    --success-color: #28a745;
+    --shadow: 0 .5rem 1rem rgba(0,0,0,.1);
+    --border-radius: 0.5rem;
+    --transition: all 0.3s ease;
+}
+
+body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    color: var(--text-color);
+}
+
 .header {
-    background-color: #f8f9fa;
+    background-color: white;
     padding: 15px 0;
     margin-bottom: 20px;
+    box-shadow: var(--shadow);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
 }
 
 .calendar-day {
-    border: 1px solid #ddd;
-    padding: 10px;
+    border: 1px solid var(--border-color);
+    padding: 15px;
     min-height: 200px;
-    margin-bottom: 10px;
+    margin-bottom: 15px;
+    border-radius: var(--border-radius);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    transition: var(--transition);
+}
+
+.calendar-day:hover {
+    box-shadow: var(--shadow);
 }
 
 .calendar-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 15px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.calendar-header h3 {
+    font-size: 1.25rem;
+    margin: 10px 0;
 }
 
 .reservation-toggle {
-    margin-top: 10px;
+    margin-top: 15px;
 }
 
 .form-check-label {
     font-weight: 500;
 }
 
+.form-check-input:checked {
+    background-color: var(--success-color);
+    border-color: var(--success-color);
+}
+
 .reservation-status {
     margin-top: 15px;
     font-style: italic;
+    padding: 5px 10px;
+    border-radius: 20px;
+    display: inline-block;
+    font-size: 0.875rem;
+}
+
+.status-reserved {
+    background-color: rgba(40, 167, 69, 0.1);
+    color: var(--success-color);
+}
+
+.status-not-reserved {
+    background-color: rgba(108, 117, 125, 0.1);
+    color: #6c757d;
 }
 
 .user-list {
     margin-bottom: 30px;
+    border-radius: var(--border-radius);
+    overflow: hidden;
+    box-shadow: var(--shadow);
 }
 
 .user-item {
-    padding: 8px;
-    border-bottom: 1px solid #eee;
+    padding: 12px 15px;
+    border-bottom: 1px solid var(--border-color);
+    transition: var(--transition);
+}
+
+.user-item:hover {
+    background-color: rgba(13, 110, 253, 0.05);
 }
 
 .user-registration {
-    background-color: #f8f9fa;
-    padding: 5px;
-    margin: 5px 0;
-    border-radius: 4px;
+    background-color: var(--secondary-color);
+    padding: 10px;
+    margin: 8px 0;
+    border-radius: var(--border-radius);
+}
+
+.btn {
+    border-radius: 30px;
+    padding: 8px 20px;
+    transition: var(--transition);
+}
+
+.btn-outline-primary {
+    border-color: var(--primary-color);
+}
+
+.btn-outline-primary:hover {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.btn-outline-danger {
+    border-color: var(--danger-color);
+}
+
+.btn-outline-danger:hover {
+    background-color: var(--danger-color);
+    color: white;
+}
+
+/* Vue mobile et bureau */
+.desktop-view {
+    display: block;
+}
+
+.mobile-view {
+    display: none;
+}
+
+/* Liste mobile du calendrier */
+.calendar-list {
+    margin-top: 15px;
+}
+
+.calendar-list-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    margin-bottom: 10px;
+    background-color: white;
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border-color);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    transition: var(--transition);
+}
+
+.calendar-list-item.today {
+    border-color: var(--primary-color);
+    border-width: 2px;
+}
+
+.calendar-list-item:hover {
+    box-shadow: var(--shadow);
+}
+
+.day-info {
+    flex: 1;
+}
+
+.day-info h5 {
+    margin-bottom: 5px;
+    font-size: 1.1rem;
+}
+
+.day-info .badge {
+    font-size: 0.7rem;
+    margin-left: 5px;
+    vertical-align: middle;
+}
+
+.toggle-container {
+    text-align: right;
+    min-width: 80px;
+}
+
+.toggle-container small {
+    display: block;
+    font-size: 0.7rem;
+    margin-top: 3px;
+}
+
+.status-indicator {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    margin-left: 3px;
+}
+
+.status-reserved-pill {
+    background-color: rgba(40, 167, 69, 0.1);
+    color: var(--success-color);
+}
+
+.status-not-reserved-pill {
+    background-color: rgba(108, 117, 125, 0.1);
+    color: #6c757d;
+}
+
+/* Media Queries pour la responsivité mobile */
+@media (max-width: 768px) {
+    .desktop-view {
+        display: none;
+    }
+    
+    .mobile-view {
+        display: block;
+    }
+    
+    .calendar-header {
+        justify-content: center;
+    }
+    
+    .calendar-header button {
+        margin: 0 10px;
+    }
+    
+    .calendar-day {
+        min-height: 150px;
+    }
+    
+    .container {
+        padding: 0 15px;
+    }
+    
+    h3 {
+        font-size: 1.15rem;
+        text-align: center;
+        width: 100%;
+        order: -1;
+        margin-bottom: 10px;
+    }
+    
+    .calendar-list-item {
+        padding: 12px;
+    }
+    
+    .day-info h5 {
+        font-size: 1rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .header .d-flex {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .header h2 {
+        margin-bottom: 15px;
+        font-size: 1.5rem;
+    }
+    
+    .header .btn {
+        margin: 5px;
+    }
 }
