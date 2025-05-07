@@ -15,7 +15,7 @@ Cette application est destinée à faciliter l'organisation des repas du midi po
 
 ### Activation de l'environnement virtuel (sur o2switch)
 
-source /home/cnc38/virtualenv/repas.cncholonge.fr/3.10/bin/activate
+source /home/cnc38/virtualenv/repas.cncholonge.fr/3.10/bin/activate 
 cd /home/cnc38/repas.cncholonge.fr
 
 ### Fichier WSGI (point d'entrée pour le déploiement)
