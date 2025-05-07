@@ -24,6 +24,10 @@ cd /home/cnc38/repas.cncholonge.fr
 
 chemin : cnc_repas/wsgi.py
 
+### Mettre a jour depuis le depot distant
+git fetch origin
+git reset --hard origin/main
+
 ## ⚙️ Commandes de gestion Django
 
 ### 🔄 Migrations (à faire lors de modifications dans les modèles)
