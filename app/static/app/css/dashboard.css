@@ -253,6 +253,20 @@ body {
     .day-info h5 {
         font-size: 1rem;
     }
+    .form-check-input[type="checkbox"] {
+        width: 3em !important;
+        height: 1.5em !important;
+    }
+    
+    .form-check-input:checked {
+        background-position: right;
+        background-size: contain;
+    }
+    
+    .form-check-label {
+        padding-left: 5px;
+        padding-top: 2px;
+    }
 }
 
 @media (max-width: 576px) {
@@ -270,3 +284,4 @@ body {
         margin: 5px;
     }
 }
+
