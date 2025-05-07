@@ -1,5 +1,7 @@
 # 🥗 Application de Réservation de Repas - CNC Cholonge
 
+## Version : 1.0.0
+
 Bienvenue dans l'application de réservation de repas du **Club Nautique de Cholonge (CNC)**.  
 Cette application est destinée à faciliter l'organisation des repas du midi pour les **bénévoles, le staff du club house et les membres de l'équipe de voile** pendant les événements ou les périodes d'activité du club.
 
