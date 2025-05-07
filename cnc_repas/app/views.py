@@ -155,7 +155,6 @@ def toggle_reservation_api(request):
         })
 
 
-# ...existing code...
 @login_required
 def user_reservations_api(request):
     """API endpoint to get user reservations for a specific week"""
@@ -213,12 +212,28 @@ def get_week_reservations(request):
                 formatted_reservations[date_str] = []
             
             formatted_reservations[date_str].append({
+                'id': reservation.id,  # Add the reservation ID
                 'user_id': reservation.user.id,
                 'user_name': str(reservation.user.name),
                 'status': reservation.user.status
             })
         
         return JsonResponse({'success': True, 'reservations': formatted_reservations})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+   
+@csrf_exempt
+def delete_reservation(request, reservation_id):
+    """API endpoint to delete a reservation"""
+    try:
+        # Allow deletion of any reservation (by manager)
+        # Remove the user=request.user filter to allow managers to delete any reservation
+        reservation = get_object_or_404(Reservation, id=reservation_id)
+        reservation.delete()
+        return JsonResponse({'success': True})
+    except Reservation.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Reservation not found'})
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)})
     

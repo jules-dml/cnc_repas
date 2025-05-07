@@ -29,5 +29,7 @@ urlpatterns = [
     path('profile/update-username/', views.update_username, name='update_username'),
 
     path('profile/change-password/', views.change_password, name='change_password'),
+
+    path("api/delete_reservation/<int:reservation_id>", views.delete_reservation, name="delete_reservation"),
     
 ]

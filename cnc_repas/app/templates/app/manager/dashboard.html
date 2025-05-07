@@ -9,6 +9,18 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Custom CSS -->
     <link href="{% static 'app/css/dashboard.css' %}" rel="stylesheet">
+    <!-- Additional styles -->
+    <style>
+        /* Ajout de padding en bas des cellules des jours */
+        #calendarDays .day-cell {
+            padding-bottom: 60px; /* Ajustez cette valeur selon vos besoins */
+        }
+        
+        /* Si les jours ne sont pas dans des éléments avec la classe day-cell, utilisez ceci */
+        #calendarDays > div {
+            padding-bottom: 60px;
+        }
+    </style>
 </head>
 <body>
     <!-- Header with navigation buttons -->
@@ -16,11 +28,6 @@
         <div class="container">
             <div class="d-flex justify-content-between align-items-center">
                 <h2>Admin Interface</h2>
-                <div>
-                    <a href="/admin/users" class="btn btn-outline-primary me-2">Utilisateur</a>
-                    <button class="btn btn-outline-secondary me-2">Paramètre</button>
-                    <button class="btn btn-outline-success">Exporter</button>
-                </div>
             </div>
         </div>
     </div>
@@ -68,6 +75,71 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
                     <button type="button" id="validateReservation" class="btn btn-primary">Valider</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal for day details -->
+    <div class="modal fade" id="dayDetailsModal" tabindex="-1" aria-labelledby="dayDetailsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="dayDetailsModalLabel">Détails du jour</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <h2 id="detailDayTitle" class="mb-4 text-center"></h2>
+                    
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5>Statistiques</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div id="statusStats" class="d-flex justify-content-around flex-wrap">
+                                        <!-- Stats will be populated by JavaScript -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5>Liste des personnes</h5>
+                                </div>
+                                <div class="card-body">
+                                    <!-- Filtres pour la liste des personnes -->
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <div class="input-group">
+                                                <span class="input-group-text">Recherche</span>
+                                                <input type="text" id="searchPeople" class="form-control" placeholder="Rechercher par nom...">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="input-group">
+                                                <span class="input-group-text">Statut</span>
+                                                <select id="statusFilter" class="form-select">
+                                                    <option value="all">Tous les statuts</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div id="peopleList">
+                                        <!-- People list will be populated by JavaScript -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
                 </div>
             </div>
         </div>
