@@ -1,32 +1,31 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Connexion</title>
-    {% load static %}
-    <link rel="stylesheet" href="{% static 'app/css/login.css' %}">
-</head>
-<body>
-    <div class="login-container">
-        <div class="login-card">
-            <div class="login-header">
-                <img src="{% static 'app/images/app_icon.png' %}" alt="App Icon" class="app-icon">
-                <h1>Connexion</h1>
-            </div>
-            <div class="login-body">
-                <form method="POST" autocomplete="off" id="login-form">
-                    {% csrf_token %}
-                    <div class="form-fields">
-                        {{ loginform.as_p }}
-                    </div>
-                    <div class="form-actions">
-                        <button type="submit" class="btn-login">Se connecter</button>
-                    </div>
-                </form>
-            </div>
+{% extends 'app/base.html' %}
+{% load static %}
+
+{% block title %}Connexion{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'app/css/login.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="login-container">
+    <div class="login-card">
+        <div class="login-header">
+            <img src="{% static 'app/images/app_icon.png' %}" alt="App Icon" class="app-icon">
+            <h1>Connexion</h1>
+        </div>
+        <div class="login-body">
+            <form method="POST" autocomplete="off" id="login-form">
+                {% csrf_token %}
+                <div class="form-fields">
+                    {{ loginform.as_p }}
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn-login">Se connecter</button>
+                </div>
+            </form>
         </div>
     </div>
-    <script src="{% static 'app/js/login.js' %}"></script>
-</body>
-</html>
+</div>
+<script src="{% static 'app/js/login.js' %}"></script>
+{% endblock %}
