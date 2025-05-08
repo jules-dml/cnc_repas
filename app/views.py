@@ -13,6 +13,8 @@ from django.contrib.auth.forms import PasswordChangeForm
 from django.utils import timezone
 from django.contrib.auth import get_user_model
 from django.views.decorators.csrf import csrf_exempt
+from django.contrib.auth.decorators import login_required
+from django.http import HttpResponseForbidden
 
 
 from .models import CustomUser
@@ -35,6 +37,18 @@ def my_login(request):
     
     return render(request, 'app/my-login.html', {'loginform': form})
 
+def manager_required(view_func):
+    """Decorator to check if user has manager privileges"""
+    @login_required
+    def wrapper(request, *args, **kwargs):
+        # Define which statuses can access manager dashboard
+        manager_statuses = ['Moniteur', 'Bar']  # Customize based on your needs
+        if request.user.status in manager_statuses:
+            return view_func(request, *args, **kwargs)
+        return HttpResponseForbidden("Vous n'avez pas l'autorisation d'accéder à cette page.")
+    return wrapper
+
+@manager_required
 def manager_dashboard(request):
     """Render the manager dashboard page"""
     return render(request, 'app/manager/dashboard.html', {'title': 'Manager Dashboard', 'users': CustomUser.objects.all()})
