@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
@@ -15,6 +15,13 @@ from django.contrib.auth import get_user_model
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseForbidden
+import csv
+from io import StringIO
+# For PDF generation
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib import colors
 
 
 from .models import CustomUser
@@ -397,5 +404,252 @@ def delete_user(request, user_id):
         user.delete()
         return JsonResponse({'success': True})
         
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+@manager_required
+def export_reservations(request):
+    """Export reservations to CSV or PDF format based on filter criteria"""
+    try:
+        # Get query parameters
+        export_format = request.GET.get('format', 'csv')
+        start_date_str = request.GET.get('start_date', '')
+        end_date_str = request.GET.get('end_date', '')
+        
+        # Parse dates
+        start_date, end_date = None, None
+        if start_date_str:
+            try:
+                start_date = datetime.strptime(start_date_str, '%d/%m/%Y').date()
+            except ValueError:
+                return HttpResponse(f"Format de date invalide pour la date de début: {start_date_str}", status=400)
+                
+        if end_date_str:
+            try:
+                end_date = datetime.strptime(end_date_str, '%d/%m/%Y').date()
+            except ValueError:
+                return HttpResponse(f"Format de date invalide pour la date de fin: {end_date_str}", status=400)
+        
+        # Build query for reservations
+        query_args = {}
+        if start_date and end_date:
+            query_args['date__range'] = [start_date, end_date]
+        elif start_date:
+            query_args['date__gte'] = start_date
+        elif end_date:
+            query_args['date__lte'] = end_date
+            
+        # Get all reservations within the date range
+        reservations = Reservation.objects.filter(**query_args).select_related('user').order_by('date')
+        
+        # Generate export file based on format
+        if export_format == 'csv':
+            return export_to_csv(reservations)
+        elif export_format == 'pdf':
+            return export_to_pdf(reservations)
+        else:
+            return HttpResponse("Format non supporté", status=400)
+            
+    except Exception as e:
+        return HttpResponse(f"Erreur lors de l'exportation: {str(e)}", status=500)
+
+def export_to_csv(reservations):
+    """Generate a CSV file from reservation data"""
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="reservations.csv"'
+    
+    writer = csv.writer(response)
+    writer.writerow(['Date', 'Nom', 'Status', 'Email'])
+    
+    for reservation in reservations:
+        writer.writerow([
+            reservation.date.strftime('%d/%m/%Y'),
+            reservation.user.name,
+            reservation.user.status,
+            reservation.user.email or 'N/A'
+        ])
+        
+    return response
+
+def export_to_pdf(reservations):
+    """Generate a PDF file from reservation data"""
+    response = HttpResponse(content_type='application/pdf')
+    date = datetime.now().strftime('%d-%m-%Y')
+    response['Content-Disposition'] = f'attachment; filename="repas-{date}.pdf"'
+    
+    # Create the PDF document
+    doc = SimpleDocTemplate(response, pagesize=A4)
+    elements = []
+    
+    # Define styles
+    styles = getSampleStyleSheet()
+    title_style = styles['Title']
+    subtitle_style = styles['Heading2']
+    normal_style = styles['Normal']
+    
+    # Add title
+    elements.append(Paragraph("Rapport des réservations", title_style))
+    elements.append(Paragraph(" ", normal_style))  # Add some spacing
+
+    # Add general stats
+    total_meals = len(reservations)
+    elements.append(Paragraph(f"Nombre total de repas: {total_meals}", subtitle_style))
+    elements.append(Paragraph(" ", normal_style))
+    
+    # Count meals by status
+    status_counts = {}
+    for reservation in reservations:
+        status = reservation.user.status
+        if status in status_counts:
+            status_counts[status] += 1
+        else:
+            status_counts[status] = 1
+    
+    # Display status statistics
+    elements.append(Paragraph("Nombre de repas par statut:", subtitle_style))
+    status_data = [['Statut', 'Nombre de repas']]
+    for status, count in status_counts.items():
+        status_data.append([status, str(count)])
+    
+    status_table = Table(status_data, repeatRows=1)
+    status_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+    ]))
+    elements.append(status_table)
+    elements.append(Paragraph(" ", normal_style))
+    
+    # Count meals by user
+    user_counts = {}
+    for reservation in reservations:
+        user_name = reservation.user.name
+        if user_name in user_counts:
+            user_counts[user_name] += 1
+        else:
+            user_counts[user_name] = 1
+    
+    # Display user statistics
+    elements.append(Paragraph("Nombre de repas par utilisateur:", subtitle_style))
+    user_data = [['Utilisateur', 'Nombre de repas']]
+    for user_name, count in user_counts.items():
+        user_data.append([user_name, str(count)])
+    
+    user_table = Table(user_data, repeatRows=1)
+    user_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+    ]))
+    elements.append(user_table)
+    elements.append(Paragraph(" ", normal_style))
+    elements.append(Paragraph(" ", normal_style))
+    
+    # Create table data for reservations list
+    elements.append(Paragraph("Liste détaillée des réservations:", subtitle_style))
+    data = [['Date', 'Nom', 'Status']]  # Header row
+    
+    for reservation in reservations:
+        data.append([
+            reservation.date.strftime('%d/%m/%Y'),
+            reservation.user.name,
+            reservation.user.status,
+        ])
+    
+    # Create table
+    table = Table(data, repeatRows=1)
+    
+    # Add style to table
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+    ]))
+    
+    # Add the table to the elements list
+    elements.append(table)
+    
+    # Build the PDF document
+    doc.build(elements)
+    
+    # Return the response
+    return response
+
+@manager_required
+def get_reservation_stats(request):
+    """API endpoint to get reservation statistics within a date range"""
+    try:
+        # Get query parameters
+        start_date_str = request.GET.get('start_date', '')
+        end_date_str = request.GET.get('end_date', '')
+        
+        # Parse dates
+        start_date, end_date = None, None
+        if start_date_str:
+            try:
+                start_date = datetime.strptime(start_date_str, '%d/%m/%Y').date()
+            except ValueError:
+                return JsonResponse({'success': False, 'error': f"Format de date invalide pour la date de début: {start_date_str}"})
+                
+        if end_date_str:
+            try:
+                end_date = datetime.strptime(end_date_str, '%d/%m/%Y').date()
+            except ValueError:
+                return JsonResponse({'success': False, 'error': f"Format de date invalide pour la date de fin: {end_date_str}"})
+        
+        # Build query for reservations
+        query_args = {}
+        if start_date and end_date:
+            query_args['date__range'] = [start_date, end_date]
+        elif start_date:
+            query_args['date__gte'] = start_date
+        elif end_date:
+            query_args['date__lte'] = end_date
+            
+        # Get all reservations within the date range
+        reservations = Reservation.objects.filter(**query_args).select_related('user')
+        
+        # Calculate statistics
+        total_meals = reservations.count()
+        
+        # Count meals by status
+        status_counts = {}
+        for reservation in reservations:
+            status = reservation.user.status
+            if status in status_counts:
+                status_counts[status] += 1
+            else:
+                status_counts[status] = 1
+        
+        # Count meals by user
+        user_counts = {}
+        for reservation in reservations:
+            user_name = reservation.user.name
+            if user_name in user_counts:
+                user_counts[user_name] += 1
+            else:
+                user_counts[user_name] = 1
+        
+        return JsonResponse({
+            'success': True,
+            'stats': {
+                'total_meals': total_meals,
+                'by_status': status_counts,
+                'by_user': user_counts
+            }
+        })
+            
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)})

@@ -407,6 +407,231 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initial display
     displayWeek(monday);
     
+    // Export Functionality
+    // ---------------------------------------------------------
+    
+    // Initialize date pickers when modal is shown
+    const exportModal = document.getElementById('exportModal');
+    exportModal.addEventListener('shown.bs.modal', function() {
+        // Initialize only if not already initialized
+        if (!document.querySelector('.datepicker')) {
+            // Load the jQuery and datepicker scripts if not already loaded
+            if (typeof $.fn.datepicker === 'undefined') {
+                loadScript('https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js')
+                    .then(() => loadScript('https://cdn.jsdelivr.net/npm/bootstrap-datepicker@1.9.0/dist/js/bootstrap-datepicker.min.js'))
+                    .then(() => loadCSS('https://cdn.jsdelivr.net/npm/bootstrap-datepicker@1.9.0/dist/css/bootstrap-datepicker.min.css'))
+                    .then(() => initDatePickers())
+                    .then(() => fetchReservationStats())
+                    .catch(error => console.error('Error loading scripts:', error));
+            } else {
+                initDatePickers();
+                fetchReservationStats();
+            }
+        } else {
+            fetchReservationStats();
+        }
+    });
+    
+    // Function to fetch reservation statistics
+    function fetchReservationStats() {
+        const startDate = document.getElementById('exportStartDate').value;
+        const endDate = document.getElementById('exportEndDate').value;
+        
+        // Show loading indicator
+        document.getElementById('reservationStats').innerHTML = `
+            <div class="text-center mb-3">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Chargement...</span>
+                </div>
+                <p>Chargement des statistiques...</p>
+            </div>
+        `;
+        
+        // Build query parameters
+        let queryParams = new URLSearchParams();
+        if (startDate) queryParams.append('start_date', startDate);
+        if (endDate) queryParams.append('end_date', endDate);
+        
+        // Fetch stats from API
+        fetch(`/manager/api/reservation-stats?${queryParams.toString()}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    displayReservationStats(data.stats);
+                } else {
+                    displayStatsError(data.error || 'Une erreur est survenue lors du chargement des statistiques');
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching stats:', error);
+                displayStatsError('Une erreur est survenue lors du chargement des statistiques');
+            });
+    }
+    
+    // Function to display reservation statistics
+    function displayReservationStats(stats) {
+        const statsContainer = document.getElementById('reservationStats');
+        
+        let html = `
+            <div class="card mb-3">
+                <div class="card-body text-center">
+                    <h3>${stats.total_meals}</h3>
+                    <p>Nombre total de repas</p>
+                </div>
+            </div>
+        `;
+        
+        // Stats by status
+        html += `
+            <div class="card mb-3">
+                <div class="card-header">Repas par statut</div>
+                <div class="card-body">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Statut</th>
+                                <th>Nombre de repas</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+        `;
+        
+        for (const [status, count] of Object.entries(stats.by_status)) {
+            html += `
+                <tr>
+                    <td>${status}</td>
+                    <td>${count}</td>
+                </tr>
+            `;
+        }
+        
+        html += `
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+        
+        // Stats by user
+        html += `
+            <div class="card">
+                <div class="card-header">Repas par utilisateur</div>
+                <div class="card-body">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Utilisateur</th>
+                                <th>Nombre de repas</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+        `;
+        
+        for (const [user, count] of Object.entries(stats.by_user)) {
+            html += `
+                <tr>
+                    <td>${user}</td>
+                    <td>${count}</td>
+                </tr>
+            `;
+        }
+        
+        html += `
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+        
+        statsContainer.innerHTML = html;
+    }
+    
+    // Function to display stats error
+    function displayStatsError(errorMessage) {
+        const statsContainer = document.getElementById('reservationStats');
+        statsContainer.innerHTML = `
+            <div class="alert alert-danger">
+                ${errorMessage}
+            </div>
+        `;
+    }
+    
+    // Update statistics when date changes
+    document.getElementById('exportStartDate').addEventListener('change', fetchReservationStats);
+    document.getElementById('exportEndDate').addEventListener('change', fetchReservationStats);
+    
+    // Function to dynamically load a script
+    function loadScript(url) {
+        return new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = url;
+            script.onload = resolve;
+            script.onerror = reject;
+            document.head.appendChild(script);
+        });
+    }
+    
+    // Function to dynamically load CSS
+    function loadCSS(url) {
+        return new Promise((resolve, reject) => {
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = url;
+            link.onload = resolve;
+            link.onerror = reject;
+            document.head.appendChild(link);
+        });
+    }
+    
+    // Initialize the date pickers
+    function initDatePickers() {
+        $('#exportStartDate, #exportEndDate').datepicker({
+            format: 'dd/mm/yyyy',
+            autoclose: true,
+            todayHighlight: true,
+            language: 'fr',
+            todayBtn: 'linked',
+            clearBtn: true
+        });
+        
+        // Set default dates - start date as today - 30 days, end date as today
+        const today = new Date();
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(today.getDate() - 30);
+        
+        $('#exportStartDate').datepicker('setDate', thirtyDaysAgo);
+        $('#exportEndDate').datepicker('setDate', today);
+    }
+    
+    // Handle export button click
+    document.getElementById('exportBtn').addEventListener('click', function() {
+        const format = document.getElementById('exportFormat').value;
+        const startDate = document.getElementById('exportStartDate').value;
+        const endDate = document.getElementById('exportEndDate').value;
+        
+        // Validate the form
+        if (!format) {
+            alert('Veuillez sélectionner un format d\'exportation');
+            return;
+        }
+        
+        if (!startDate || !endDate) {
+            alert('Veuillez sélectionner une date de début et de fin');
+            return;
+        }
+        
+        // Prepare the query string
+        let queryParams = new URLSearchParams({
+            format: format,
+            start_date: startDate,
+            end_date: endDate
+        });
+        
+        // Create the export URL and navigate to it
+        const exportUrl = `/manager/api/export_reservations?${queryParams.toString()}`;
+        window.open(exportUrl, '_blank');
+    });
+    
     // User Management Code
     // ---------------------------------------------------------
     

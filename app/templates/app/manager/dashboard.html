@@ -28,7 +28,7 @@
             <div>
                 <a class="btn btn-primary">⚙️ Paramètres</a>
                 <a class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#usersModal">👤 Utilisateurs</a>
-                <a class="btn btn-success">📅 Données</a>
+                <a class="btn btn-success" data-bs-toggle="modal" data-bs-target="#exportModal">📅 Données</a>
                 <a class="btn btn-danger">🚪 Déconnexion</a>
             </div>
         </div>
@@ -241,6 +241,56 @@
     </div>
 </div>
 
+<!-- Modal for export reservation data -->
+<div class="modal fade" id="exportModal" tabindex="-1" aria-labelledby="exportModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="exportModalLabel">Exporter les données de réservation</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="exportForm">
+                    <div class="mb-3">
+                        <label for="exportFormat" class="form-label">Format d'exportation</label>
+                        <select id="exportFormat" class="form-select">
+                            <option value="" disabled selected>Choisir un format</option>
+                            <option value="csv">CSV</option>
+                            <option value="pdf">PDF</option>
+                        </select>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="exportStartDate" class="form-label">Date de début</label>
+                            <input type="text" id="exportStartDate" class="form-control" placeholder="JJ/MM/AAAA">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="exportEndDate" class="form-label">Date de fin</label>
+                            <input type="text" id="exportEndDate" class="form-control" placeholder="JJ/MM/AAAA">
+                        </div>
+                    </div>
+                </form>
+
+                <!-- New statistics section -->
+                <div class="statistics-section mt-4">
+                    <h5>Statistiques des réservations</h5>
+                    <div id="reservationStats" class="p-3 border rounded">
+                        <div class="text-center mb-3">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Chargement...</span>
+                            </div>
+                            <p>Chargement des statistiques...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-primary" id="exportBtn">Exporter</button>
+            </div>
+        </div>
+    </div>
+</div>
             
 <!-- Bootstrap & Custom JS -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
