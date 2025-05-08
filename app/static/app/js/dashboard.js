@@ -167,28 +167,30 @@ document.addEventListener('DOMContentLoaded', function() {
         const isPastTodayDeadline = isToday && isPastDeadline();
         
         if (isPastDate || isPastTodayDeadline) {
-            // Show a disabled toggle for past dates or today after deadline
-            toggleContainer.innerHTML = `
-                <div class="form-check form-switch">
-                    <input class="form-check-input" type="checkbox" disabled>
-                    <label class="form-check-label">Réserver</label>
+            // For past dates, only show status without toggle
+            statusDiv.innerHTML = `
+                <div class="mb-2 ${isPastTodayDeadline ? 'text-warning' : 'text-secondary'}">
+                    <i class="fas fa-clock"></i> ${isPastTodayDeadline ? `Délai dépassé (${deadlineHour}h${deadlineMinute > 0 ? deadlineMinute : ''})` : "Date passée"}
+                </div>
+                <div class="${isReserved ? 'text-success' : 'text-danger'}">
+                    <strong>${isReserved ? "Réservé" : "Non réservé"}</strong>
                 </div>
             `;
-            statusDiv.textContent = isPastTodayDeadline ? `Délai dépassé (${deadlineHour}h${deadlineMinute > 0 ? deadlineMinute : ''})` : "Date passée";
-            statusDiv.className = 'reservation-status status-not-reserved';
+            
+            // Do not add the toggle for past dates
         } else {
             toggleContainer.innerHTML = `
                 <div class="form-check form-switch">
-                    <input class="form-check-input" type="checkbox" role="switch" 
+                    <input class="form-check-input reservation-toggle-large" type="checkbox" role="switch" 
                         id="reservation-${dateKey}" ${isReserved ? 'checked' : ''}>
                     <label class="form-check-label" for="reservation-${dateKey}">Réserver</label>
                 </div>
             `;
             
-            statusDiv.textContent = isReserved ? "Réservé" : "Non réservé";
             statusDiv.className = isReserved ? 
                 'reservation-status status-reserved' : 
                 'reservation-status status-not-reserved';
+            statusDiv.innerHTML = `<strong>${isReserved ? "Réservé" : "Non réservé"}</strong>`;
             
             // Add event listener to handle toggle
             setTimeout(() => {
@@ -202,7 +204,12 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         dayCard.appendChild(dayHeader);
-        dayCard.appendChild(toggleContainer);
+        
+        // Only append toggle for future dates
+        if (!(isPastDate || isPastTodayDeadline)) {
+            dayCard.appendChild(toggleContainer);
+        }
+        
         dayCard.appendChild(statusDiv);
         
         // Add deadline info if it's today and before deadline
@@ -259,11 +266,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const isPastTodayDeadline = isToday && isPastDeadline();
         
         if (isPastDate || isPastTodayDeadline) {
-            // Past date or today after deadline
+            // Hide toggle for past dates, just show a message
             toggleContainer.innerHTML = `
-                <div class="form-check form-switch">
-                    <input class="form-check-input" type="checkbox" disabled>
-                </div>
                 <small class="text-muted">${isPastTodayDeadline ? `Délai dépassé (${deadlineHour}h${deadlineMinute > 0 ? deadlineMinute : ''})` : "Date passée"}</small>
             `;
         } else {
