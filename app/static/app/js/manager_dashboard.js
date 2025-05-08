@@ -55,7 +55,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (isPolling) {
                         // Compare with last data to see if we need to redraw
                         if (JSON.stringify(data.reservations) !== JSON.stringify(lastReservationsData)) {
-                            console.log('Reservations data changed, updating calendar...');
                             createCalendarDays(monday, data.reservations);
                             lastReservationsData = data.reservations;
                         }
@@ -249,7 +248,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         .then(response => response.json())
                         .then(data => {
                             if (data.success) {
-                                console.log('Reservation deleted successfully');
                                 
                                 // Close the modal
                                 const modal = bootstrap.Modal.getInstance(document.getElementById('dayDetailsModal'));
@@ -365,7 +363,6 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                console.log('Reservation created successfully');
                 const reservationModal = bootstrap.Modal.getInstance(document.getElementById('reservationModal'));
                 reservationModal.hide();
                 displayWeek(monday); // Refresh the calendar
@@ -409,4 +406,251 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initial display
     displayWeek(monday);
+    
+    // User Management Code
+    // ---------------------------------------------------------
+    
+    // Load users when users modal is opened
+    const usersModal = document.getElementById('usersModal');
+    usersModal.addEventListener('show.bs.modal', function() {
+        loadUsers();
+    });
+    
+    // Handle add user button
+    document.getElementById('addUserBtn').addEventListener('click', function() {
+        // Reset form
+        document.getElementById('userForm').reset();
+        document.getElementById('userId').value = '';
+        document.getElementById('userFormModalLabel').textContent = 'Ajouter un utilisateur';
+        document.getElementById('passwordFields').style.display = 'block';
+        
+        // Show the form modal
+        const userFormModal = new bootstrap.Modal(document.getElementById('userFormModal'));
+        userFormModal.show();
+    });
+    
+    // Handle save user button
+    document.getElementById('saveUserBtn').addEventListener('click', function() {
+        const userId = document.getElementById('userId').value;
+        const userData = {
+            name: document.getElementById('userName').value,
+            username: document.getElementById('userUsername').value,
+            email: document.getElementById('userEmail').value,
+            status: document.getElementById('userStatus').value
+        };
+        
+        // Add password if it's provided
+        const password = document.getElementById('userPassword').value;
+        if (password) {
+            userData.password = password;
+        }
+        
+        if (userId) {
+            // Update existing user
+            updateUser(userId, userData);
+        } else {
+            // Create new user
+            if (!password) {
+                alert('Le mot de passe est obligatoire pour un nouvel utilisateur');
+                return;
+            }
+            createUser(userData);
+        }
+    });
+    
+    // Search functionality
+    document.getElementById('userSearchInput').addEventListener('input', function() {
+        const searchText = this.value.toLowerCase();
+        const rows = document.querySelectorAll('#usersTableBody tr');
+        
+        rows.forEach(row => {
+            const name = row.querySelector('td:first-child').textContent.toLowerCase();
+            const username = row.querySelector('td:nth-child(2)').textContent.toLowerCase();
+            
+            if (name.includes(searchText) || username.includes(searchText)) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    });
+    
+    function loadUsers() {
+        // Show loading message
+        const tableBody = document.getElementById('usersTableBody');
+        tableBody.innerHTML = '<tr><td colspan="4" class="text-center">Chargement des utilisateurs...</td></tr>';
+        
+        // Hide any previous errors
+        document.getElementById('userLoadingError').style.display = 'none';
+        
+        
+        fetch('/manager/api/users')
+            .then(response => {
+                return response.json();
+            })
+            .then(data => {
+                
+                if (data.success) {
+                    if (data.users && data.users.length > 0) {
+                        displayUsers(data.users);
+                    } else {
+                        tableBody.innerHTML = '<tr><td colspan="4" class="text-center">Aucun utilisateur trouvé</td></tr>';
+                    }
+                } else {
+                    console.error('Error loading users:', data.error);
+                    tableBody.innerHTML = '<tr><td colspan="4" class="text-center text-danger">Erreur lors du chargement des utilisateurs</td></tr>';
+                    
+                    // Show error message
+                    const errorElement = document.getElementById('userLoadingError');
+                    errorElement.textContent = 'Erreur: ' + (data.error || 'Impossible de charger les utilisateurs');
+                    errorElement.style.display = 'block';
+                }
+            })
+            .catch(error => {
+                console.error('Fetch Error:', error);
+                tableBody.innerHTML = '<tr><td colspan="4" class="text-center text-danger">Erreur lors du chargement des utilisateurs</td></tr>';
+                
+                // Show error message
+                const errorElement = document.getElementById('userLoadingError');
+                errorElement.textContent = 'Erreur: ' + error.message;
+                errorElement.style.display = 'block';
+            });
+    }
+    
+    function displayUsers(users) {
+        const tableBody = document.getElementById('usersTableBody');
+        tableBody.innerHTML = '';
+        
+        users.forEach(user => {
+            const row = document.createElement('tr');
+            
+            const nameCell = document.createElement('td');
+            nameCell.textContent = user.name;
+            
+            const usernameCell = document.createElement('td');
+            usernameCell.textContent = user.username;
+            
+            const statusCell = document.createElement('td');
+            statusCell.textContent = user.status;
+            
+            const actionsCell = document.createElement('td');
+            
+            const editButton = document.createElement('button');
+            editButton.className = 'btn btn-sm btn-outline-primary me-2';
+            editButton.innerHTML = '<i class="bi bi-pencil"></i> Modifier';  // Added text fallback
+            editButton.addEventListener('click', () => editUser(user));
+            
+            const deleteButton = document.createElement('button');
+            deleteButton.className = 'btn btn-sm btn-outline-danger';
+            deleteButton.innerHTML = '<i class="bi bi-trash"></i> Supprimer';  // Added text fallback
+            deleteButton.addEventListener('click', () => confirmDeleteUser(user.id, user.name));
+            
+            actionsCell.appendChild(editButton);
+            actionsCell.appendChild(deleteButton);
+            
+            row.appendChild(nameCell);
+            row.appendChild(usernameCell);
+            row.appendChild(statusCell);
+            row.appendChild(actionsCell);
+            
+            tableBody.appendChild(row);
+        });
+    }
+    
+    function editUser(user) {
+        // Populate the form with user data
+        document.getElementById('userId').value = user.id;
+        document.getElementById('userName').value = user.name;
+        document.getElementById('userUsername').value = user.username;
+        document.getElementById('userEmail').value = user.email || '';
+        document.getElementById('userStatus').value = user.status;
+        document.getElementById('userPassword').value = '';
+        
+        // Change the title and hide password field (optional for edit)
+        document.getElementById('userFormModalLabel').textContent = 'Modifier un utilisateur';
+        document.getElementById('passwordFields').style.display = 'block';
+        
+        // Show the modal
+        const userFormModal = new bootstrap.Modal(document.getElementById('userFormModal'));
+        userFormModal.show();
+    }
+    
+    function confirmDeleteUser(userId, userName) {
+        if (confirm(`Êtes-vous sûr de vouloir supprimer l'utilisateur ${userName}?`)) {
+            deleteUser(userId);
+        }
+    }
+    
+    function createUser(userData) {
+        fetch('/manager/api/users/add', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(userData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Close modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('userFormModal'));
+                modal.hide();
+                
+                // Reload users list
+                loadUsers();
+            } else {
+                alert('Erreur lors de la création: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Une erreur est survenue lors de la création');
+        });
+    }
+    
+    function updateUser(userId, userData) {
+        fetch(`/manager/api/users/update/${userId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(userData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Close modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('userFormModal'));
+                modal.hide();
+                
+                // Reload users list
+                loadUsers();
+            } else {
+                alert('Erreur lors de la mise à jour: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Une erreur est survenue lors de la mise à jour');
+        });
+    }
+    
+    function deleteUser(userId) {
+        fetch(`/manager/api/users/delete/${userId}`, {
+            method: 'DELETE'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Reload users list
+                loadUsers();
+            } else {
+                alert('Erreur lors de la suppression: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Une erreur est survenue lors de la suppression');
+        });
+    }
 });

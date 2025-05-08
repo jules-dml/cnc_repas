@@ -32,4 +32,9 @@ urlpatterns = [
 
     path("api/delete_reservation/<int:reservation_id>", views.delete_reservation, name="delete_reservation"),
     
+    # User management API endpoints
+    path("manager/api/users", views.get_users, name="get_users"),
+    path("manager/api/users/add", views.add_user, name="add_user"),
+    path("manager/api/users/update/<int:user_id>", views.update_user, name="update_user"),
+    path("manager/api/users/delete/<int:user_id>", views.delete_user, name="delete_user"),
 ]

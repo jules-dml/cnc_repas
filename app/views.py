@@ -51,7 +51,7 @@ def manager_required(view_func):
 @manager_required
 def manager_dashboard(request):
     """Render the manager dashboard page"""
-    return render(request, 'app/manager/dashboard.html', {'title': 'Manager Dashboard', 'users': CustomUser.objects.all()})
+    return render(request, 'app/manager/dashboard.html', {'title': 'Manager Dashboard', 'users': CustomUser.objects.all(), "statuses": CustomUser.Status.choices})
 
 
 @login_required
@@ -274,5 +274,128 @@ def create_reservation(request):
         )
         
         return JsonResponse({'success': True})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+@manager_required
+def get_users(request):
+    """API endpoint to get all users"""
+    try:
+        users = CustomUser.objects.all()
+        users_data = []
+        for user in users:
+            users_data.append({
+                'id': user.id,
+                'name': user.name,
+                'username': user.username,
+                'email': user.email or '',
+                'status': user.status,
+            })
+        return JsonResponse({'success': True, 'users': users_data})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+@csrf_exempt
+@manager_required
+def add_user(request):
+    """API endpoint to add a new user"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Only POST method is allowed'})
+    
+    try:
+        data = json.loads(request.body)
+        name = data.get('name')
+        username = data.get('username')
+        password = data.get('password')
+        email = data.get('email', '')
+        status = data.get('status')
+        
+        if not all([name, username, password, status]):
+            return JsonResponse({'success': False, 'error': 'All required fields must be provided'})
+        
+        if CustomUser.objects.filter(username=username).exists():
+            return JsonResponse({'success': False, 'error': 'Username already exists'})
+        
+        user = CustomUser.objects.create_user(
+            username=username,
+            email=email,
+            password=password,
+            name=name,
+            status=status
+        )
+        
+        return JsonResponse({
+            'success': True,
+            'user': {
+                'id': user.id,
+                'name': user.name,
+                'username': user.username,
+                'email': user.email,
+                'status': user.status
+            }
+        })
+        
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+@csrf_exempt
+@manager_required
+def update_user(request, user_id):
+    """API endpoint to update an existing user"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Only POST method is allowed'})
+    
+    try:
+        user = get_object_or_404(CustomUser, id=user_id)
+        data = json.loads(request.body)
+        
+        if 'name' in data and data['name']:
+            user.name = data['name']
+        
+        if 'username' in data and data['username']:
+            if CustomUser.objects.filter(username=data['username']).exclude(id=user_id).exists():
+                return JsonResponse({'success': False, 'error': 'Username already exists'})
+            user.username = data['username']
+        
+        if 'email' in data:
+            user.email = data['email']
+        
+        if 'status' in data and data['status']:
+            user.status = data['status']
+        
+        if 'password' in data and data['password']:
+            user.set_password(data['password'])
+        
+        user.save()
+        
+        return JsonResponse({
+            'success': True,
+            'user': {
+                'id': user.id,
+                'name': user.name,
+                'username': user.username,
+                'email': user.email,
+                'status': user.status
+            }
+        })
+        
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+@csrf_exempt
+@manager_required
+def delete_user(request, user_id):
+    """API endpoint to delete a user"""
+    if request.method != 'DELETE':
+        return JsonResponse({'success': False, 'error': 'Only DELETE method is allowed'})
+    
+    try:
+        user = get_object_or_404(CustomUser, id=user_id)
+        
+        if user.id == request.user.id:
+            return JsonResponse({'success': False, 'error': 'Cannot delete your own account'})
+        
+        user.delete()
+        return JsonResponse({'success': True})
+        
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)})

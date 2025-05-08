@@ -5,6 +5,7 @@
 
 {% block extra_css %}
 <link href="{% static 'app/css/dashboard.css' %}" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
 <style>
     /* Ajout de padding en bas des cellules des jours */
     #calendarDays .day-cell {
@@ -24,6 +25,12 @@
     <div class="container">
         <div class="d-flex justify-content-between align-items-center">
             <h2>Admin Interface</h2>
+            <div>
+                <a class="btn btn-primary">⚙️ Paramètres</a>
+                <a class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#usersModal">👤 Utilisateurs</a>
+                <a class="btn btn-success">📅 Données</a>
+                <a class="btn btn-danger">🚪 Déconnexion</a>
+            </div>
         </div>
     </div>
 </div>
@@ -140,6 +147,100 @@
         </div>
     </div>
 </div>
+
+<!-- Modal for user management -->
+<div class="modal fade" id="usersModal" tabindex="-1" aria-labelledby="usersModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="usersModalLabel">Gestion des utilisateurs</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="d-flex justify-content-between mb-3">
+                    <input type="text" id="userSearchInput" class="form-control w-50" placeholder="Rechercher un utilisateur...">
+                    <button type="button" class="btn btn-success" id="addUserBtn">
+                        <i class="bi bi-plus-circle"></i> Ajouter un utilisateur
+                    </button>
+                </div>
+                
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Nom</th>
+                                <th>Nom d'utilisateur</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersTableBody">
+                            <!-- Users will be loaded here -->
+                            <tr>
+                                <td colspan="4" class="text-center">Chargement des utilisateurs...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div id="userLoadingError" class="alert alert-danger" style="display:none;"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal for add/edit user -->
+<div class="modal fade" id="userFormModal" tabindex="-1" aria-labelledby="userFormModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="userFormModalLabel">Ajouter un utilisateur</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="userForm">
+                    <input type="hidden" id="userId" name="userId">
+                    
+                    <div class="mb-3">
+                        <label for="userName" class="form-label">Nom</label>
+                        <input type="text" class="form-control" id="userName" name="name" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="userUsername" class="form-label">Nom d'utilisateur</label>
+                        <input type="text" class="form-control" id="userUsername" name="username" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="userEmail" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="userEmail" name="email">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="userStatus" class="form-label">Status</label>
+                        <select class="form-select" id="userStatus" name="status" required>
+                            {% for status in statuses %}
+                            <option value="{{ status.0 }}">{{ status.0 }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3" id="passwordFields">
+                        <label for="userPassword" class="form-label">Mot de passe</label>
+                        <input type="password" class="form-control" id="userPassword" name="password">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-primary" id="saveUserBtn">Enregistrer</button>
+            </div>
+        </div>
+    </div>
+</div>
+
             
 <!-- Bootstrap & Custom JS -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
