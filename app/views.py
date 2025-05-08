@@ -3,7 +3,9 @@ from django.http import JsonResponse, HttpResponse
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
+from django.conf import settings
 import json
+import os
 from .forms import LoginForm
 from datetime import datetime, timedelta
 from .models import Reservation
@@ -26,6 +28,35 @@ from reportlab.lib import colors
 
 from .models import CustomUser
 
+
+# Path to store settings
+SETTINGS_FILE = os.path.join(settings.BASE_DIR, 'app', 'app_settings.json')
+
+# Default settings
+DEFAULT_SETTINGS = {
+    'deadline_time': '11:00'  # Default deadline: 11:00 AM
+}
+
+def load_app_settings():
+    """Load application settings from JSON file"""
+    try:
+        if os.path.exists(SETTINGS_FILE):
+            with open(SETTINGS_FILE, 'r') as f:
+                return json.load(f)
+        return DEFAULT_SETTINGS.copy()
+    except Exception as e:
+        print(f"Error loading settings: {e}")
+        return DEFAULT_SETTINGS.copy()
+
+def save_app_settings(settings_data):
+    """Save application settings to JSON file"""
+    try:
+        with open(SETTINGS_FILE, 'w') as f:
+            json.dump(settings_data, f)
+        return True
+    except Exception as e:
+        print(f"Error saving settings: {e}")
+        return False
 
 def homepage(request):
     return render(request, 'app/index.html')
@@ -651,5 +682,38 @@ def get_reservation_stats(request):
             }
         })
             
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+@manager_required
+def get_settings(request):
+    """API endpoint to get application settings"""
+    try:
+        settings_data = load_app_settings()
+        return JsonResponse({'success': True, 'settings': settings_data})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+@csrf_exempt
+@manager_required
+def update_settings(request):
+    """API endpoint to update application settings"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Only POST method is allowed'})
+    
+    try:
+        data = json.loads(request.body)
+        current_settings = load_app_settings()
+        
+        # Update only the provided settings
+        for key, value in data.items():
+            current_settings[key] = value
+        
+        # Save the updated settings
+        if save_app_settings(current_settings):
+            return JsonResponse({'success': True, 'settings': current_settings})
+        else:
+            return JsonResponse({'success': False, 'error': 'Failed to save settings'})
+        
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)})

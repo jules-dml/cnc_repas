@@ -3,6 +3,9 @@ document.addEventListener('DOMContentLoaded', function() {
     let currentDate = new Date();
     let currentDay = currentDate.getDay(); // 0 is Sunday, 1 is Monday...
     
+    // Variable to store the reservation deadline time (default: "11:00")
+    let reservationDeadlineTime = "11:00";
+    
     // Calculate the Monday of the current week
     let monday = new Date(currentDate);
     monday.setDate(currentDate.getDate() - (currentDay === 0 ? 6 : currentDay - 1));
@@ -878,4 +881,112 @@ document.addEventListener('DOMContentLoaded', function() {
             alert('Une erreur est survenue lors de la suppression');
         });
     }
+    
+    // Settings Management Code
+    // ---------------------------------------------------------
+    
+    // Load settings when settings modal is opened
+    document.querySelector('.btn.btn-primary').addEventListener('click', function() {
+        loadSettings();
+        const settingsModal = new bootstrap.Modal(document.getElementById('settingsModal'));
+        settingsModal.show();
+    });
+    
+    // Handle save settings button
+    document.getElementById('saveSettingsBtn').addEventListener('click', function() {
+        const deadlineTime = document.getElementById('deadlineTime').value;
+        if (!deadlineTime) {
+            alert('Veuillez spécifier une heure limite valide');
+            return;
+        }
+        
+        saveSettings({
+            deadline_time: deadlineTime
+        });
+    });
+    
+    function loadSettings() {
+        // Show loading state
+        document.getElementById('settingsSaved').style.display = 'none';
+        document.getElementById('settingsError').style.display = 'none';
+        
+        fetch('/api/get-settings')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Populate form with settings
+                    document.getElementById('deadlineTime').value = data.settings.deadline_time || "11:00";
+                    
+                    // Update global variable
+                    reservationDeadlineTime = data.settings.deadline_time || "11:00";
+                } else {
+                    console.error('Error loading settings:', data.error);
+                    document.getElementById('settingsError').textContent = 'Erreur lors du chargement des paramètres: ' + data.error;
+                    document.getElementById('settingsError').style.display = 'block';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('settingsError').textContent = 'Une erreur est survenue lors du chargement des paramètres';
+                document.getElementById('settingsError').style.display = 'block';
+            });
+    }
+    
+    function saveSettings(settingsData) {
+        fetch('/manager/api/settings/update', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify(settingsData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('settingsSaved').style.display = 'block';
+                document.getElementById('settingsError').style.display = 'none';
+                
+                // Update global variable
+                reservationDeadlineTime = settingsData.deadline_time;
+                
+                // Hide success message after 3 seconds
+                setTimeout(() => {
+                    document.getElementById('settingsSaved').style.display = 'none';
+                }, 3000);
+            } else {
+                console.error('Error saving settings:', data.error);
+                document.getElementById('settingsError').textContent = 'Erreur lors de l\'enregistrement: ' + data.error;
+                document.getElementById('settingsError').style.display = 'block';
+                document.getElementById('settingsSaved').style.display = 'none';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('settingsError').textContent = 'Une erreur est survenue lors de l\'enregistrement';
+            document.getElementById('settingsError').style.display = 'block';
+            document.getElementById('settingsSaved').style.display = 'none';
+        });
+    }
+    
+    // Helper function to get CSRF token
+    function getCsrfToken() {
+        const cookieValue = document.cookie
+            .split('; ')
+            .find(row => row.startsWith('csrftoken='))
+            ?.split('=')[1];
+        return cookieValue || '';
+    }
+    
+    // Initial settings load
+    fetch('/api/get-settings')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                reservationDeadlineTime = data.settings.deadline_time || "11:00";
+            }
+        })
+        .catch(error => {
+            console.error('Error loading initial settings:', error);
+        });
 });

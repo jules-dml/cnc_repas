@@ -10,6 +10,56 @@ document.addEventListener('DOMContentLoaded', function() {
     // Store user reservations
     let userReservations = {};
     
+    // Default deadline (will be updated with server settings)
+    let deadlineHour = 11;
+    let deadlineMinute = 0;
+    
+    // Fetch application settings from the server
+    fetch('/api/get-settings')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Parse deadline time from server settings (format HH:MM)
+                const deadlineTime = data.settings.deadline_time || "11:00";
+                const [hours, minutes] = deadlineTime.split(':').map(Number);
+                deadlineHour = hours;
+                deadlineMinute = minutes;
+            } else {
+                console.error('Failed to load settings:', data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading settings:', error);
+        });
+    
+    // Check if current time is past deadline
+    function isPastDeadline() {
+        const now = new Date();
+        return now.getHours() > deadlineHour || 
+               (now.getHours() === deadlineHour && now.getMinutes() >= deadlineMinute);
+    }
+    
+    // Get remaining time before deadline
+    function getDeadlineRemainingTime() {
+        const now = new Date();
+        const deadline = new Date(now);
+        deadline.setHours(deadlineHour, deadlineMinute, 0, 0);
+        
+        if (now >= deadline) {
+            return null; // Past deadline
+        }
+        
+        const diff = deadline - now;
+        const hours = Math.floor(diff / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        
+        if (hours > 0) {
+            return `${hours}h ${minutes}m restantes`;
+        } else {
+            return `${minutes}m restantes`;
+        }
+    }
+    
     // Function to display a week
     function displayWeek(startDate) {
         const daysContainer = document.getElementById('calendarDays');
@@ -113,15 +163,18 @@ document.addEventListener('DOMContentLoaded', function() {
         const statusDiv = document.createElement('div');
         statusDiv.className = 'reservation-status';
         
-        if (isPastDate) {
-            // Show a disabled toggle for past dates
+        // Check if it's today and past deadline
+        const isPastTodayDeadline = isToday && isPastDeadline();
+        
+        if (isPastDate || isPastTodayDeadline) {
+            // Show a disabled toggle for past dates or today after deadline
             toggleContainer.innerHTML = `
                 <div class="form-check form-switch">
                     <input class="form-check-input" type="checkbox" disabled>
                     <label class="form-check-label">Réserver</label>
                 </div>
             `;
-            statusDiv.textContent = "Date passée";
+            statusDiv.textContent = isPastTodayDeadline ? `Délai dépassé (${deadlineHour}h${deadlineMinute > 0 ? deadlineMinute : ''})` : "Date passée";
             statusDiv.className = 'reservation-status status-not-reserved';
         } else {
             toggleContainer.innerHTML = `
@@ -151,6 +204,15 @@ document.addEventListener('DOMContentLoaded', function() {
         dayCard.appendChild(dayHeader);
         dayCard.appendChild(toggleContainer);
         dayCard.appendChild(statusDiv);
+        
+        // Add deadline info if it's today and before deadline
+        if (isToday && !isPastDeadline()) {
+            const deadlineInfo = document.createElement('div');
+            deadlineInfo.className = 'deadline-info text-warning mt-2';
+            deadlineInfo.innerHTML = `<small><i class="fas fa-clock"></i> Délai: ${deadlineHour}h${deadlineMinute > 0 ? deadlineMinute : ''} (${getDeadlineRemainingTime()})</small>`;
+            dayCard.appendChild(deadlineInfo);
+        }
+        
         dayCol.appendChild(dayCard);
         container.appendChild(dayCol);
     }
@@ -173,6 +235,14 @@ document.addEventListener('DOMContentLoaded', function() {
             todayBadge.className = 'badge bg-primary';
             todayBadge.textContent = 'Aujourd\'hui';
             dayInfo.appendChild(todayBadge);
+            
+            // Add deadline info if before deadline
+            if (!isPastDeadline()) {
+                const deadlineInfo = document.createElement('div');
+                deadlineInfo.className = 'text-warning small';
+                deadlineInfo.innerHTML = `<i class="fas fa-clock"></i> Délai: ${deadlineHour}h${deadlineMinute > 0 ? deadlineMinute : ''} (${getDeadlineRemainingTime()})`;
+                dayInfo.appendChild(deadlineInfo);
+            }
         }
         
         const statusSpan = document.createElement('span');
@@ -185,16 +255,19 @@ document.addEventListener('DOMContentLoaded', function() {
         const toggleContainer = document.createElement('div');
         toggleContainer.className = 'toggle-container';
         
-        if (isPastDate) {
-            // Past date
+        // Check if it's today and past deadline
+        const isPastTodayDeadline = isToday && isPastDeadline();
+        
+        if (isPastDate || isPastTodayDeadline) {
+            // Past date or today after deadline
             toggleContainer.innerHTML = `
                 <div class="form-check form-switch">
                     <input class="form-check-input" type="checkbox" disabled>
                 </div>
-                <small class="text-muted">Date passée</small>
+                <small class="text-muted">${isPastTodayDeadline ? `Délai dépassé (${deadlineHour}h${deadlineMinute > 0 ? deadlineMinute : ''})` : "Date passée"}</small>
             `;
         } else {
-            // Future date
+            // Future date or today before deadline
             toggleContainer.innerHTML = `
                 <div class="form-check form-switch">
                     <input class="form-check-input" type="checkbox" role="switch" 
@@ -227,12 +300,25 @@ document.addEventListener('DOMContentLoaded', function() {
         listItem.appendChild(dayInfo);
         listItem.appendChild(toggleContainer);
         container.appendChild(listItem);
-        
-        // Débogage - vérifier si l'élément est créé
-        console.log('Liste mobile: élément créé pour ' + dateKey);
     }
     
     function toggleReservation(date, isReserved) {
+        // Check if it's today and past deadline
+        const dateObj = new Date(date);
+        const isToday = isSameDay(dateObj, new Date());
+        
+        if (isToday && isPastDeadline() && isReserved) {
+            alert(`Les réservations pour aujourd'hui sont fermées après ${deadlineHour}h${deadlineMinute > 0 ? deadlineMinute : ''}.`);
+            // Reset the toggle without making API call
+            const gridToggle = document.getElementById(`reservation-${date}`);
+            if (gridToggle) gridToggle.checked = false;
+            
+            const listToggle = document.getElementById(`list-reservation-${date}`);
+            if (listToggle) listToggle.checked = false;
+            
+            return;
+        }
+        
         fetch('/api/toggle-reservation', {
             method: 'POST',
             headers: {

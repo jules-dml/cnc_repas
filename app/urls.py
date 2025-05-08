@@ -43,4 +43,8 @@ urlpatterns = [
 
     # Reservation statistics API endpoint
     path('manager/api/reservation-stats', views.get_reservation_stats, name='get_reservation_stats'),
+
+    # Settings API endpoints
+    path("api/get-settings", views.get_settings, name="get_settings"),
+    path("manager/api/settings/update", views.update_settings, name="update_settings"),
 ]
