@@ -35,9 +35,11 @@ class Reservation(models.Model):
     date = models.DateField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    benevole = models.BooleanField(default=False)  # Remplace le champ status par un booléen
     
     class Meta:
         unique_together = ['user', 'date']
         
     def __str__(self):
-        return f"{self.user.username} - {self.date}"
+        status = "Bénévole" if self.benevole else self.user.status
+        return f"{self.user.username} - {self.date} ({status})"

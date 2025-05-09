@@ -175,6 +175,7 @@ def toggle_reservation_api(request):
         data = json.loads(request.body)
         date_str = data.get('date')
         reserved = data.get('reserved', False)
+        is_volunteer = data.get('benevole', False)  # Récupère le paramètre booléen
         
         date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
         
@@ -185,12 +186,13 @@ def toggle_reservation_api(request):
                 'error': 'Cannot modify reservations for past dates'
             })
             
-        # Simply create or delete the reservation without status concerns
+        # Create, update, or delete the reservation
         if reserved:
-            # Create reservation if it doesn't exist
-            Reservation.objects.get_or_create(
+            # Create or update reservation with volunteer status
+            reservation, created = Reservation.objects.update_or_create(
                 user=request.user,
-                date=date_obj
+                date=date_obj,
+                defaults={'benevole': is_volunteer}  # Set boolean field
             )
         else:
             # Delete the reservation if it exists
@@ -227,12 +229,14 @@ def user_reservations_api(request):
         for reservation in reservations:
             date_key = reservation.date.strftime('%Y-%m-%d')
             reservations_dict[date_key] = {
-                'reserved': True
+                'reserved': True,
+                'benevole': reservation.benevole  # Use the boolean field
             }
             
         return JsonResponse({
             'success': True,
-            'reservations': reservations_dict
+            'reservations': reservations_dict,
+            'user_status': request.user.status  # Send user's default status
         })
     except Exception as e:
         return JsonResponse({
@@ -263,11 +267,16 @@ def get_week_reservations(request):
             if date_str not in formatted_reservations:
                 formatted_reservations[date_str] = []
             
+            # Use the benevole field to determine status
+            status = "Benevole" if reservation.benevole else reservation.user.status
+            
             formatted_reservations[date_str].append({
-                'id': reservation.id,  # Add the reservation ID
+                'id': reservation.id,
                 'user_id': reservation.user.id,
                 'user_name': str(reservation.user.name),
-                'status': reservation.user.status
+                'status': status,
+                'benevole': reservation.benevole,
+                'user_status': reservation.user.status
             })
         
         return JsonResponse({'success': True, 'reservations': formatted_reservations})
@@ -297,6 +306,7 @@ def create_reservation(request):
         data = json.loads(request.body)
         date = data.get('date')
         user_id = data.get('user_id')
+        is_volunteer = data.get('benevole', False)
         
         # Validate required fields
         if not date or not user_id:
@@ -309,6 +319,7 @@ def create_reservation(request):
         reservation, created = Reservation.objects.update_or_create(
             user=user,
             date=date,
+            defaults={'benevole': is_volunteer}
         )
         
         return JsonResponse({'success': True})
@@ -477,7 +488,7 @@ def export_reservations(request):
         if export_format == 'csv':
             return export_to_csv(reservations)
         elif export_format == 'pdf':
-            return export_to_pdf(reservations)
+            return export_to_pdf(reservations, start_date, end_date)
         else:
             return HttpResponse("Format non supporté", status=400)
             
@@ -486,23 +497,28 @@ def export_reservations(request):
 
 def export_to_csv(reservations):
     """Generate a CSV file from reservation data"""
+    date = datetime.now().strftime('%d-%m-%Y')
     response = HttpResponse(content_type='text/csv')
-    response['Content-Disposition'] = 'attachment; filename="reservations.csv"'
+    response['Content-Disposition'] = f'attachment; filename="reservations-{date}.csv"'
+
+    # Utiliser StringIO + UTF-8-sig pour les accents (et compatibilité Excel)
+    buffer = StringIO()
+    writer = csv.writer(buffer)
     
-    writer = csv.writer(response)
-    writer.writerow(['Date', 'Nom', 'Status', 'Email'])
-    
+    writer.writerow(['Date', 'Nom', 'Status'])
     for reservation in reservations:
+        status = "Bénévole" if reservation.benevole else reservation.user.status
         writer.writerow([
             reservation.date.strftime('%d/%m/%Y'),
             reservation.user.name,
-            reservation.user.status,
-            reservation.user.email or 'N/A'
+            status,
         ])
-        
+
+    response.content = '\ufeff' + buffer.getvalue()
     return response
 
-def export_to_pdf(reservations):
+
+def export_to_pdf(reservations, start_date=None, end_date=None):
     """Generate a PDF file from reservation data"""
     response = HttpResponse(content_type='application/pdf')
     date = datetime.now().strftime('%d-%m-%Y')
@@ -522,6 +538,19 @@ def export_to_pdf(reservations):
     elements.append(Paragraph("Rapport des réservations", title_style))
     elements.append(Paragraph(" ", normal_style))  # Add some spacing
 
+    # Add date range information if provided
+    if start_date and end_date:
+        date_range = f"Période: du {start_date.strftime('%d/%m/%Y')} au {end_date.strftime('%d/%m/%Y')}"
+        elements.append(Paragraph(date_range, subtitle_style))
+    elif start_date:
+        date_range = f"Période: à partir du {start_date.strftime('%d/%m/%Y')}"
+        elements.append(Paragraph(date_range, subtitle_style))
+    elif end_date:
+        date_range = f"Période: jusqu'au {end_date.strftime('%d/%m/%Y')}"
+        elements.append(Paragraph(date_range, subtitle_style))
+    
+    elements.append(Paragraph(" ", normal_style))  # Add some spacing
+
     # Add general stats
     total_meals = len(reservations)
     elements.append(Paragraph(f"Nombre total de repas: {total_meals}", subtitle_style))
@@ -530,7 +559,8 @@ def export_to_pdf(reservations):
     # Count meals by status
     status_counts = {}
     for reservation in reservations:
-        status = reservation.user.status
+        # Use 'Bénévole' status if benevole flag is True, otherwise use user's status
+        status = "Bénévole" if reservation.benevole else reservation.user.status
         if status in status_counts:
             status_counts[status] += 1
         else:
@@ -559,17 +589,36 @@ def export_to_pdf(reservations):
     user_counts = {}
     for reservation in reservations:
         user_name = reservation.user.name
-        if user_name in user_counts:
-            user_counts[user_name] += 1
-        else:
-            user_counts[user_name] = 1
+        if user_name not in user_counts:
+            user_counts[user_name] = {"total": 0, "voile": 0, "bar": 0, "benevole": 0}
+        
+        user_counts[user_name]["total"] += 1
+        if reservation.user.status in ["Moniteur", "Aide Moniteur"] and reservation.benevole == False:
+            user_counts[user_name]["voile"] += 1
+        if reservation.benevole or reservation.user.status == "Bénévole":
+            user_counts[user_name]["benevole"] += 1
+        elif reservation.user.status == "Bar":
+            user_counts[user_name]["bar"] += 1
     
     # Display user statistics
     elements.append(Paragraph("Nombre de repas par utilisateur:", subtitle_style))
-    user_data = [['Utilisateur', 'Nombre de repas']]
-    for user_name, count in user_counts.items():
-        user_data.append([user_name, str(count)])
-    
+    user_data = [['Utilisateur', 'Total repas', 'Voile', 'Bar', "Bénévole"]]
+    for user_name, counts in user_counts.items():        
+        user_data.append([
+            user_name, 
+            str(counts["total"]), 
+            str(counts["voile"]), 
+            str(counts["bar"]),
+            str(counts["benevole"])
+        ])
+    total = ['Total', 
+             str(total_meals), 
+             str(sum(counts["voile"] for counts in user_counts.values())), 
+             str(sum(counts["bar"] for counts in user_counts.values())), 
+             str(sum(counts["benevole"] for counts in user_counts.values()))
+            ]
+    user_data.append(total)
+   
     user_table = Table(user_data, repeatRows=1)
     user_table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
@@ -589,10 +638,12 @@ def export_to_pdf(reservations):
     data = [['Date', 'Nom', 'Status']]  # Header row
     
     for reservation in reservations:
+        # Use 'Bénévole' status if benevole flag is True, otherwise use user's status
+        status = "Bénévole" if reservation.benevole else reservation.user.status
         data.append([
             reservation.date.strftime('%d/%m/%Y'),
             reservation.user.name,
-            reservation.user.status,
+            status,
         ])
     
     # Create table
@@ -658,7 +709,8 @@ def get_reservation_stats(request):
         # Count meals by status
         status_counts = {}
         for reservation in reservations:
-            status = reservation.user.status
+            # Use 'Bénévole' status if benevole flag is True, otherwise use user's status
+            status = "Bénévole" if reservation.benevole else reservation.user.status
             if status in status_counts:
                 status_counts[status] += 1
             else:
@@ -668,10 +720,14 @@ def get_reservation_stats(request):
         user_counts = {}
         for reservation in reservations:
             user_name = reservation.user.name
-            if user_name in user_counts:
-                user_counts[user_name] += 1
+            if user_name not in user_counts:
+                user_counts[user_name] = {"total": 0, "volunteer": 0, "regular": 0}
+            
+            user_counts[user_name]["total"] += 1
+            if reservation.benevole:
+                user_counts[user_name]["volunteer"] += 1
             else:
-                user_counts[user_name] = 1
+                user_counts[user_name]["regular"] += 1
         
         return JsonResponse({
             'success': True,
@@ -715,5 +771,77 @@ def update_settings(request):
         else:
             return JsonResponse({'success': False, 'error': 'Failed to save settings'})
         
+
     except Exception as e:
-        return JsonResponse({'success': False, 'error': str(e)})
+        return JsonResponse({'success': False, 'error': str(e)})    
+    
+@csrf_exempt
+@require_POST
+def update_reservation_status_api(request):
+    """API endpoint to update a reservation's volunteer status"""
+    try:
+        data = json.loads(request.body)
+        date_str = data.get('date')
+        is_volunteer = data.get('benevole', False)
+        
+        if not date_str:
+            return JsonResponse({
+                'success': False, 
+                'error': 'Date is required'
+            })
+        
+        date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
+        
+        # Find the reservation
+        try:
+            reservation = Reservation.objects.get(
+                user=request.user,
+                date=date_obj
+            )
+            # Update the volunteer status
+            reservation.benevole = is_volunteer
+            reservation.save()
+            
+            return JsonResponse({
+                'success': True
+            })
+        except Reservation.DoesNotExist:
+            return JsonResponse({
+                'success': False, 
+                'error': 'Reservation not found'
+            })
+            
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        })
+
+@csrf_exempt
+@require_POST
+def update_reservation_status(request, reservation_id):
+    """API endpoint for manager to update a reservation's status by ID"""
+    try:
+        data = json.loads(request.body)
+        is_volunteer = data.get('benevole', False)
+        
+        # Find the reservation
+        reservation = get_object_or_404(Reservation, id=reservation_id)
+        
+        # Update the status
+        reservation.benevole = is_volunteer
+        reservation.save()
+        
+        return JsonResponse({
+            'success': True
+        })
+    except Reservation.DoesNotExist:
+        return JsonResponse({
+            'success': False, 
+            'error': 'Reservation not found'
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        })

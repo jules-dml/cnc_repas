@@ -7,8 +7,10 @@ document.addEventListener('DOMContentLoaded', function() {
     let monday = new Date(currentDate);
     monday.setDate(currentDate.getDate() - (currentDay === 0 ? 6 : currentDay - 1));
     
-    // Store user reservations
+    // Store user reservations and user info
     let userReservations = {};
+    let currentUserStatus = ''; // Will be populated from API response
+    let canSelectVolunteerStatus = false; // Whether user can choose volunteer status
     
     // Default deadline (will be updated with server settings)
     let deadlineHour = 11;
@@ -91,6 +93,17 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(data => {
                 if (data.success) {
                     userReservations = data.reservations;
+                    currentUserStatus = data.user_status || '';
+                    
+                    // Check if the user can select volunteer status (Moniteur or Bar)
+                    // Debug output to understand user status
+                    console.log("Raw user status from API:", data.user_status);
+                    
+                    // Only enable volunteer status for Moniteur or Bar users
+                    canSelectVolunteerStatus = ['Moniteur', 'Bar'].includes(currentUserStatus);
+                    console.log("User Status:", currentUserStatus);
+                    console.log("Can select volunteer status:", canSelectVolunteerStatus);
+                    
                     createCalendarDays(monday);
                 } else {
                     console.error('Error fetching reservations:', data.error);
@@ -155,6 +168,13 @@ document.addEventListener('DOMContentLoaded', function() {
             dayHeader.appendChild(todayBadge);
         }
         
+        // Get reservation volunteer status if exists
+        const isVolunteer = userReservations[dateKey] && userReservations[dateKey].benevole;
+        // Define the displayed status text based on volunteer status
+        const reservationStatus = isVolunteer ? 'Bénévole' : currentUserStatus;
+        // Check if status should be displayed (only for Moniteur or Bar)
+        const shouldDisplayStatus = isVolunteer || ['Moniteur', 'Bar'].includes(currentUserStatus);
+        
         // Create reservation toggle
         const toggleContainer = document.createElement('div');
         toggleContainer.className = 'reservation-toggle';
@@ -174,6 +194,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
                 <div class="${isReserved ? 'text-success' : 'text-danger'}">
                     <strong>${isReserved ? "Réservé" : "Non réservé"}</strong>
+                    ${isReserved && shouldDisplayStatus ? `<span class="ms-2 badge bg-secondary">${reservationStatus}</span>` : ''}
                 </div>
             `;
             
@@ -187,17 +208,62 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
             `;
             
+            // Add volunteer checkbox for eligible users
+            if (canSelectVolunteerStatus) {
+                console.log("Adding volunteer checkbox for date:", dateKey);
+                
+                // Create volunteer checkbox as a separate element (not using innerHTML)
+                const volunteerDiv = document.createElement('div');
+                volunteerDiv.className = 'form-check volunteer-option mt-2 mb-2';
+                volunteerDiv.id = `volunteer-div-${dateKey}`;
+                // Hide volunteer checkbox if not reserved
+                if (!isReserved) {
+                    volunteerDiv.style.display = 'none';
+                }
+                
+                const volunteerInput = document.createElement('input');
+                volunteerInput.type = 'checkbox';
+                volunteerInput.className = 'form-check-input volunteer-checkbox';
+                volunteerInput.id = `volunteer-${dateKey}`;
+                volunteerInput.checked = isVolunteer;
+                volunteerInput.style.marginRight = '5px';
+                
+                const volunteerLabel = document.createElement('label');
+                volunteerLabel.className = 'form-check-label';
+                volunteerLabel.htmlFor = `volunteer-${dateKey}`;
+                volunteerLabel.textContent = 'En tant que bénévole';
+                
+                volunteerDiv.appendChild(volunteerInput);
+                volunteerDiv.appendChild(volunteerLabel);
+                toggleContainer.appendChild(volunteerDiv);
+                
+                // Add event listener for volunteer toggle
+                volunteerInput.addEventListener('change', function() {
+                    updateReservationStatus(dateKey, this.checked);
+                });
+            }
+            
             statusDiv.className = isReserved ? 
                 'reservation-status status-reserved' : 
                 'reservation-status status-not-reserved';
-            statusDiv.innerHTML = `<strong>${isReserved ? "Réservé" : "Non réservé"}</strong>`;
+            statusDiv.innerHTML = `<strong>${isReserved ? "Réservé" : "Non réservé"}</strong>
+                ${isReserved && shouldDisplayStatus ? `<span class="ms-2 badge bg-secondary">${reservationStatus}</span>` : ''}`;
             
             // Add event listener to handle toggle
             setTimeout(() => {
                 const toggle = document.getElementById(`reservation-${dateKey}`);
                 if (toggle) {
                     toggle.addEventListener('change', function() {
-                        toggleReservation(dateKey, this.checked);
+                        const volunteerCheckbox = document.getElementById(`volunteer-${dateKey}`);
+                        const volunteerDiv = document.getElementById(`volunteer-div-${dateKey}`);
+                        const isVolunteer = volunteerCheckbox && volunteerCheckbox.checked;
+                        
+                        // Show/hide volunteer checkbox based on reservation toggle
+                        if (volunteerDiv) {
+                            volunteerDiv.style.display = this.checked ? 'block' : 'none';
+                        }
+                        
+                        toggleReservation(dateKey, this.checked, isVolunteer);
                     });
                 }
             }, 0);
@@ -252,12 +318,27 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
         
+        // Get reservation volunteer status if exists
+        const isVolunteer = userReservations[dateKey] && userReservations[dateKey].benevole;
+        // Define the displayed status text based on volunteer status
+        const reservationStatus = isVolunteer ? 'Bénévole' : currentUserStatus;
+        // Check if status should be displayed (only for Moniteur or Bar)
+        const shouldDisplayStatus = isVolunteer || ['Moniteur', 'Bar'].includes(currentUserStatus);
+        
         const statusSpan = document.createElement('span');
         statusSpan.className = isReserved ? 
             'status-indicator status-reserved-pill' : 
             'status-indicator status-not-reserved-pill';
         statusSpan.textContent = isReserved ? 'Réservé' : 'Non réservé';
         dayInfo.appendChild(statusSpan);
+        
+        // Add status badge if reserved
+        if (isReserved && shouldDisplayStatus) {
+            const statusBadge = document.createElement('span');
+            statusBadge.className = 'badge bg-secondary ms-2';
+            statusBadge.textContent = reservationStatus;
+            dayInfo.appendChild(statusBadge);
+        }
         
         const toggleContainer = document.createElement('div');
         toggleContainer.className = 'toggle-container';
@@ -279,23 +360,64 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
             `;
             
+            // Add volunteer checkbox for eligible users in mobile view
+            if (canSelectVolunteerStatus) {
+                console.log("Adding mobile volunteer checkbox for date:", dateKey);
+                
+                const volunteerDiv = document.createElement('div');
+                volunteerDiv.className = 'form-check volunteer-option mt-1';
+                volunteerDiv.id = `list-volunteer-div-${dateKey}`;
+                // Hide volunteer checkbox if not reserved
+                if (!isReserved) {
+                    volunteerDiv.style.display = 'none';
+                }
+                
+                const volunteerInput = document.createElement('input');
+                volunteerInput.type = 'checkbox';
+                volunteerInput.className = 'form-check-input volunteer-checkbox';
+                volunteerInput.id = `list-volunteer-${dateKey}`;
+                volunteerInput.checked = isVolunteer;
+                
+                const volunteerLabel = document.createElement('label');
+                volunteerLabel.className = 'form-check-label';
+                volunteerLabel.htmlFor = `list-volunteer-${dateKey}`;
+                volunteerLabel.textContent = 'Bénévole';
+                volunteerLabel.style.fontSize = '0.8em';
+                
+                volunteerDiv.appendChild(volunteerInput);
+                volunteerDiv.appendChild(volunteerLabel);
+                toggleContainer.appendChild(volunteerDiv);
+                
+                // Add event listener for volunteer toggle in list view
+                volunteerInput.addEventListener('change', function() {
+                    // Update in both views
+                    updateReservationStatus(dateKey, this.checked);
+                    
+                    // Also update the grid view if it exists
+                    const gridVolToggle = document.getElementById(`volunteer-${dateKey}`);
+                    if (gridVolToggle) gridVolToggle.checked = this.checked;
+                });
+            }
+            
             // Ajouter l'écouteur d'événement après que l'élément soit ajouté au DOM
             setTimeout(() => {
                 const toggle = document.getElementById(`list-reservation-${dateKey}`);
                 if (toggle) {
                     toggle.addEventListener('change', function() {
-                        toggleReservation(dateKey, this.checked);
+                        const listVolunteerCheckbox = document.getElementById(`list-volunteer-${dateKey}`);
+                        const listVolunteerDiv = document.getElementById(`list-volunteer-div-${dateKey}`);
+                        const isVolunteer = listVolunteerCheckbox && listVolunteerCheckbox.checked;
+                        
+                        // Show/hide volunteer checkbox based on reservation toggle
+                        if (listVolunteerDiv) {
+                            listVolunteerDiv.style.display = this.checked ? 'block' : 'none';
+                        }
+                        
+                        toggleReservation(dateKey, this.checked, isVolunteer);
                         
                         // Mettre à jour aussi le toggle de la vue grille s'il existe
                         const gridToggle = document.getElementById(`reservation-${dateKey}`);
                         if (gridToggle) gridToggle.checked = this.checked;
-                        
-                        // Mettre à jour le statut dans la vue liste
-                        const statusIndicator = this.closest('.calendar-list-item').querySelector('.status-indicator');
-                        statusIndicator.textContent = this.checked ? 'Réservé' : 'Non réservé';
-                        statusIndicator.className = this.checked ? 
-                            'status-indicator status-reserved-pill' : 
-                            'status-indicator status-not-reserved-pill';
                     });
                 }
             }, 0);
@@ -306,7 +428,33 @@ document.addEventListener('DOMContentLoaded', function() {
         container.appendChild(listItem);
     }
     
-    function toggleReservation(date, isReserved) {
+    function updateListViewStatus(date, isReserved, status) {
+        const statusIndicator = document.querySelector(`#list-reservation-${date}`)?.closest('.calendar-list-item')?.querySelector('.status-indicator');
+        if (statusIndicator) {
+            statusIndicator.textContent = isReserved ? "Réservé" : "Non réservé";
+            statusIndicator.className = isReserved ? 
+                'status-indicator status-reserved-pill' : 
+                'status-indicator status-not-reserved-pill';
+        }
+        
+        // Remove old status badge if exists
+        const oldBadge = document.querySelector(`#list-reservation-${date}`)?.closest('.calendar-list-item')?.querySelector('.badge.bg-secondary');
+        if (oldBadge) oldBadge.remove();
+        
+        // Add status badge if reserved and should display status
+        const shouldDisplayStatus = status === 'Bénévole' || ['Moniteur', 'Bar'].includes(currentUserStatus);
+        if (isReserved && shouldDisplayStatus) {
+            const dayInfo = document.querySelector(`#list-reservation-${date}`)?.closest('.calendar-list-item')?.querySelector('.day-info');
+            if (dayInfo) {
+                const statusBadge = document.createElement('span');
+                statusBadge.className = 'badge bg-secondary ms-2';
+                statusBadge.textContent = status;
+                dayInfo.appendChild(statusBadge);
+            }
+        }
+    }
+    
+    function toggleReservation(date, isReserved, isVolunteer) {
         // Check if it's today and past deadline
         const dateObj = new Date(date);
         const isToday = isSameDay(dateObj, new Date());
@@ -323,6 +471,9 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
+        // Ensure isVolunteer is a boolean value, default to false if undefined
+        const volunteerStatus = isVolunteer === true;
+        
         fetch('/api/toggle-reservation', {
             method: 'POST',
             headers: {
@@ -331,7 +482,8 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             body: JSON.stringify({
                 date: date,
-                reserved: isReserved
+                reserved: isReserved,
+                benevole: volunteerStatus
             })
         })
         .then(response => response.json())
@@ -340,24 +492,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Update the local store
                 if (!userReservations[date]) userReservations[date] = {};
                 userReservations[date].reserved = isReserved;
+                userReservations[date].benevole = isVolunteer;
+                
+                // Get the display status
+                const displayStatus = isVolunteer ? 'Bénévole' : currentUserStatus;
                 
                 // Update grid view status display
-                const statusDiv = document.querySelector(`#reservation-${date}`)?.closest('.calendar-day')?.querySelector('.reservation-status');
-                if (statusDiv) {
-                    statusDiv.textContent = isReserved ? "Réservé" : "Non réservé";
-                    statusDiv.className = isReserved ? 
-                        'reservation-status status-reserved' : 
-                        'reservation-status status-not-reserved';
-                }
+                updateGridViewStatus(date, isReserved, displayStatus);
                 
                 // Update list view status display
-                const listStatusIndicator = document.querySelector(`#list-reservation-${date}`)?.closest('.calendar-list-item')?.querySelector('.status-indicator');
-                if (listStatusIndicator) {
-                    listStatusIndicator.textContent = isReserved ? "Réservé" : "Non réservé";
-                    listStatusIndicator.className = isReserved ? 
-                        'status-indicator status-reserved-pill' : 
-                        'status-indicator status-not-reserved-pill';
-                }
+                updateListViewStatus(date, isReserved, displayStatus);
             } else {
                 console.error('Error toggling reservation:', data.error);
                 alert('Erreur lors de la modification de la réservation. Veuillez réessayer.');
@@ -366,6 +510,62 @@ document.addEventListener('DOMContentLoaded', function() {
         .catch(error => {
             console.error('Error:', error);
             alert('Erreur lors de la modification de la réservation. Veuillez réessayer.');
+        });
+    }
+    
+    function updateGridViewStatus(date, isReserved, status) {
+        const statusDiv = document.querySelector(`#reservation-${date}`)?.closest('.calendar-day')?.querySelector('.reservation-status');
+        if (statusDiv) {
+            statusDiv.className = isReserved ? 
+                'reservation-status status-reserved' : 
+                'reservation-status status-not-reserved';
+                
+            // Check if status should be displayed
+            const shouldDisplayStatus = status === 'Bénévole' || ['Moniteur', 'Bar'].includes(currentUserStatus);
+            statusDiv.innerHTML = `<strong>${isReserved ? "Réservé" : "Non réservé"}</strong>
+                ${isReserved && shouldDisplayStatus ? `<span class="ms-2 badge bg-secondary">${status}</span>` : ''}`;
+        }
+    }
+    
+    function updateReservationStatus(date, isVolunteer) {
+        // Only proceed if there's already a reservation
+        if (!userReservations[date] || !userReservations[date].reserved) {
+            return;
+        }
+        
+        fetch('/api/update-reservation-status', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({
+                date: date,
+                benevole: isVolunteer
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Update the local store
+                userReservations[date].benevole = isVolunteer;
+                
+                // Get the display status
+                const displayStatus = isVolunteer ? 'Bénévole' : currentUserStatus;
+                
+                // Update grid view status display
+                updateGridViewStatus(date, true, displayStatus);
+                
+                // Update list view status display
+                updateListViewStatus(date, true, displayStatus);
+            } else {
+                console.error('Error updating status:', data.error);
+                alert('Erreur lors de la mise à jour du statut. Veuillez réessayer.');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Erreur lors de la mise à jour du statut. Veuillez réessayer.');
         });
     }
     

@@ -20,6 +20,8 @@ urlpatterns = [
 
     path("api/toggle-reservation", views.toggle_reservation_api, name="toggle-reservation"),
 
+    path("api/update-reservation-status", views.update_reservation_status_api, name="update-reservation-status"),
+
     path("manager/api/create_reservation", views.create_reservation, name="create_reservation"),
 
     path('api/week-reservations', views.get_week_reservations, name='week_reservations'),
@@ -47,4 +49,7 @@ urlpatterns = [
     # Settings API endpoints
     path("api/get-settings", views.get_settings, name="get_settings"),
     path("manager/api/settings/update", views.update_settings, name="update_settings"),
+
+    # Add this new URL pattern for updating reservation status by ID
+    path("api/update_reservation_status/<int:reservation_id>", views.update_reservation_status, name="update_reservation_status_by_id"),
 ]

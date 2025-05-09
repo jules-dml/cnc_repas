@@ -330,18 +330,31 @@ body {
         font-size: 1rem;
     }
     .form-check-input[type="checkbox"] {
-        width: 3em !important;
-        height: 1.5em !important;
+        width: 2.2em !important;  /* Réduit de 3em à 2.2em */
+        height: 1.2em !important; /* Réduit de 1.5em à 1.2em */
     }
     
     .form-check-input:checked {
-        background-position: right;
+        background-position: right center;
         background-size: contain;
     }
     
+    /* Améliorer l'alignement et l'espace autour des checkboxes */
+    .form-check {
+        display: flex;
+        align-items: center;
+    }
+    
     .form-check-label {
-        padding-left: 5px;
-        padding-top: 2px;
+        padding-left: 8px;
+        padding-top: 0;
+        font-size: 0.9rem;
+    }
+    
+    /* Assurer que les toggles ont un style cohérent même sur mobile */
+    .toggle-container .form-check-input {
+        margin-top: 0;
+        vertical-align: middle;
     }
 }
 
@@ -359,5 +372,23 @@ body {
     .header .btn {
         margin: 5px;
     }
+}
+
+/* New styles for additional features */
+.status-select.border-success {
+    border: 2px solid var(--success-color) !important;
+    transition: border-color 0.3s;
+}
+
+/* Volunteer checkbox styling */
+.form-check-input:checked[type="checkbox"].volunteer-checkbox {
+    background-color: #6c757d;
+    border-color: #6c757d;
+}
+
+.badge.bg-secondary {
+    font-weight: normal;
+    font-size: 0.7em;
+    padding: 0.35em 0.65em;
 }
 

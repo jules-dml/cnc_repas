@@ -237,7 +237,45 @@ document.addEventListener('DOMContentLoaded', function() {
                     nameCell.textContent = reservation.user_name;
                     
                     const statusCell = document.createElement('td');
-                    statusCell.textContent = reservation.status;
+                    
+                    // Get the base status from the reservation
+                    const baseStatus = reservation.user_status || 'Moniteur';
+                    const isVolunteer = reservation.benevole;
+                    
+                    // Check if the user should have the bénévole option (only for Moniteur or Bar)
+                    const canBeVolunteer = baseStatus === 'Moniteur' || baseStatus === 'Bar';
+                    
+                    if (canBeVolunteer) {
+                        // Create status select dropdown
+                        const statusSelect = document.createElement('select');
+                        statusSelect.className = 'form-select form-select-sm status-select';
+                        statusSelect.dataset.reservationId = reservation.id;
+                        
+                        // Regular status option
+                        const regularOption = document.createElement('option');
+                        regularOption.value = 'false';
+                        regularOption.textContent = baseStatus;
+                        regularOption.selected = !isVolunteer;
+                        statusSelect.appendChild(regularOption);
+                        
+                        // Volunteer option
+                        const volunteerOption = document.createElement('option');
+                        volunteerOption.value = 'true';
+                        volunteerOption.textContent = 'Bénévole';
+                        volunteerOption.selected = isVolunteer;
+                        statusSelect.appendChild(volunteerOption);
+                        
+                        // Add event listener for status change
+                        statusSelect.addEventListener('change', function() {
+                            const isVolunteer = this.value === 'true';
+                            updateReservationStatus(reservation.id, isVolunteer);
+                        });
+                        
+                        statusCell.appendChild(statusSelect);
+                    } else {
+                        // For other statuses, just display the status text
+                        statusCell.textContent = baseStatus;
+                    }
                     
                     const actionCell = document.createElement('td');
                     
@@ -251,7 +289,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         .then(response => response.json())
                         .then(data => {
                             if (data.success) {
-                                
                                 // Close the modal
                                 const modal = bootstrap.Modal.getInstance(document.getElementById('dayDetailsModal'));
                                 if (modal) {
@@ -325,43 +362,82 @@ document.addEventListener('DOMContentLoaded', function() {
         dayDetailsModal.show();
     }
 
-    // Function to calculate statistics by status
-    function calculateStatusStats(reservations) {
-        const stats = {};
-        
-        if (reservations && reservations.length > 0) {
-            reservations.forEach(reservation => {
-                const status = reservation.status;
-                if (stats[status]) {
-                    stats[status]++;
-                } else {
-                    stats[status] = 1;
+    // Function to update reservation status
+    function updateReservationStatus(reservationId, isVolunteer) {
+        fetch(`/api/update_reservation_status/${reservationId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify({ benevole: isVolunteer })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Visual feedback that status was updated
+                const select = document.querySelector(`.status-select[data-reservation-id="${reservationId}"]`);
+                if (select) {
+                    // Brief visual feedback
+                    select.classList.add('border-success');
+                    setTimeout(() => {
+                        select.classList.remove('border-success');
+                    }, 1500);
                 }
-            });
-        }
-        
-        // Add total count
-        stats['Total'] = reservations ? reservations.length : 0;
-        
-        return stats;
+                
+                // Close the modal after successful update
+                const dayDetailsModal = bootstrap.Modal.getInstance(document.getElementById('dayDetailsModal'));
+                if (dayDetailsModal) {
+                    dayDetailsModal.hide();
+                }
+                
+                // Refresh the calendar display
+                displayWeek(monday);
+            } else {
+                console.error('Error updating status:', data.error);
+                alert('Erreur lors de la mise à jour du statut: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Erreur lors de la mise à jour du statut');
+        });
     }
-
-    // Function to format date for display (DD/MM/YYYY)
-    function formatDisplayDate(dateString) {
-        const parts = dateString.split('-');
-        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    
+    // Add this new API endpoint function to fetch reservations for a specific day
+    function fetchDayReservations(date) {
+        return fetch(`/api/day-reservations?date=${date}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    return data.reservations;
+                } else {
+                    console.error('Error fetching day reservations:', data.error);
+                    return [];
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                return [];
+            });
     }
     
     document.getElementById('validateReservation').addEventListener('click', function() {
         const reservationDate = document.getElementById('reservationDate').value;
         const userId = document.getElementById('userDropdown').value;
+        const isVolunteer = document.getElementById('isVolunteerCheckbox').checked;
         
         fetch('api/create_reservation', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
             },
-            body: JSON.stringify({ date: reservationDate, user_id: userId })
+            body: JSON.stringify({ 
+                date: reservationDate, 
+                user_id: userId,
+                benevole: isVolunteer
+            })
         })
         .then(response => response.json())
         .then(data => {
@@ -405,6 +481,36 @@ document.addEventListener('DOMContentLoaded', function() {
     function getDayName(dayIndex) {
         const days = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
         return days[dayIndex];
+    }
+    
+    // Function to calculate statistics by status from an array of reservations
+    function calculateStatusStats(reservations) {
+        const stats = {};
+        
+        if (reservations && reservations.length > 0) {
+            reservations.forEach(reservation => {
+                const status = reservation.status || 'Non défini';
+                if (!stats[status]) {
+                    stats[status] = 0;
+                }
+                stats[status]++;
+            });
+        }
+        
+        // Always include a total count
+        stats['Total'] = reservations ? reservations.length : 0;
+        
+        return stats;
+    }
+    
+    // Function to format date string from API format (YYYY-MM-DD) to display format (DD/MM/YYYY)
+    function formatDisplayDate(dateString) {
+        const parts = dateString.split('-');
+        if (parts.length === 3) {
+            // Convert YYYY-MM-DD to DD/MM/YYYY
+            return `${parts[2]}/${parts[1]}/${parts[0]}`;
+        }
+        return dateString; // Return the original string if it's not in expected format
     }
     
     // Initial display
@@ -989,4 +1095,19 @@ document.addEventListener('DOMContentLoaded', function() {
         .catch(error => {
             console.error('Error loading initial settings:', error);
         });
+    
+    // Add event listener to the user dropdown in the reservation modal
+    document.getElementById('userDropdown').addEventListener('change', function() {
+        const selectedOption = this.options[this.selectedIndex];
+        const userStatus = selectedOption.getAttribute('data-status');
+        const volunteerCheckboxContainer = document.getElementById('volunteerCheckboxContainer');
+        
+        // Show checkbox only if the user is Moniteur or Bar
+        if (userStatus === 'Moniteur' || userStatus === 'Bar') {
+            volunteerCheckboxContainer.style.display = 'block';
+        } else {
+            volunteerCheckboxContainer.style.display = 'none';
+            document.getElementById('isVolunteerCheckbox').checked = false; // Uncheck if hidden
+        }
+    });
 });
