@@ -690,25 +690,27 @@ def get_reservation_stats(request):
         # Count meals by status
         status_counts = {}
         for reservation in reservations:
-            # Use 'Bénévole' status if benevole flag is True, otherwise use user's status
             status = "Bénévole" if reservation.benevole else reservation.user.status
-            if status in status_counts:
-                status_counts[status] += 1
-            else:
-                status_counts[status] = 1
+            status_counts[status] = status_counts.get(status, 0) + 1
         
-        # Count meals by user
+        # Count meals by user (total, voile, bar, bénévole)
         user_counts = {}
         for reservation in reservations:
-            user_name = reservation.user.name
-            if user_name not in user_counts:
-                user_counts[user_name] = {"total": 0, "volunteer": 0, "regular": 0}
+            name = reservation.user.name
+            # initialize if needed
+            if name not in user_counts:
+                user_counts[name] = {"total": 0, "voile": 0, "bar": 0, "benevole": 0}
             
-            user_counts[user_name]["total"] += 1
-            if reservation.benevole:
-                user_counts[user_name]["volunteer"] += 1
-            else:
-                user_counts[user_name]["regular"] += 1
+            user_counts[name]["total"] += 1
+            # voile: non-benevole moniteur/aide-moniteur
+            if reservation.user.status in ["Moniteur", "Aide Moniteur"] and not reservation.benevole:
+                user_counts[name]["voile"] += 1
+            # bénévole
+            elif reservation.benevole or reservation.user.status == "Bénévole":
+                user_counts[name]["benevole"] += 1
+            # bar
+            elif reservation.user.status == "Bar":
+                user_counts[name]["bar"] += 1
         
         return JsonResponse({
             'success': True,
@@ -718,7 +720,6 @@ def get_reservation_stats(request):
                 'by_user': user_counts
             }
         })
-            
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)})
 

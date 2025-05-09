@@ -266,11 +266,11 @@
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label for="exportStartDate" class="form-label">Date de début</label>
-                            <input type="text" id="exportStartDate" class="form-control" placeholder="JJ/MM/AAAA">
+                            <input type="date" id="exportStartDate" class="form-control">
                         </div>
                         <div class="col-md-6 mb-3">
                             <label for="exportEndDate" class="form-label">Date de fin</label>
-                            <input type="text" id="exportEndDate" class="form-control" placeholder="JJ/MM/AAAA">
+                            <input type="date" id="exportEndDate" class="form-control">
                         </div>
                     </div>
                 </form>
@@ -279,12 +279,9 @@
                 <div class="statistics-section mt-4">
                     <h5>Statistiques des réservations</h5>
                     <div id="reservationStats" class="p-3 border rounded">
-                        <div class="text-center mb-3">
-                            <div class="spinner-border text-primary" role="status">
-                                <span class="visually-hidden">Chargement...</span>
-                            </div>
-                            <p>Chargement des statistiques...</p>
-                        </div>
+                        <p class="text-center text-muted">
+                            Veuillez sélectionner une date de début et une date de fin pour afficher les statistiques.
+                        </p>
                     </div>
                 </div>
             </div>

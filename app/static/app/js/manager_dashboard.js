@@ -544,8 +544,20 @@ document.addEventListener('DOMContentLoaded', function() {
     // Function to fetch reservation statistics
     function fetchReservationStats() {
         const startDate = document.getElementById('exportStartDate').value;
-        const endDate = document.getElementById('exportEndDate').value;
-        
+        const endDate   = document.getElementById('exportEndDate').value;
+
+        const formattedStartDate = convertDateFormat(startDate);
+        const formattedEndDate = convertDateFormat(endDate);
+
+        // if dates not selected, show invitation text
+        if (!startDate || !endDate) {
+            document.getElementById('reservationStats').innerHTML = `
+                <p class="text-center text-muted">
+                    Veuillez sélectionner une date de début et une date de fin pour afficher les statistiques.
+                </p>`;
+            return;
+        }
+
         // Show loading indicator
         document.getElementById('reservationStats').innerHTML = `
             <div class="text-center mb-3">
@@ -558,9 +570,9 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Build query parameters
         let queryParams = new URLSearchParams();
-        if (startDate) queryParams.append('start_date', startDate);
-        if (endDate) queryParams.append('end_date', endDate);
-        
+        if (formattedStartDate) queryParams.append('start_date', formattedStartDate);
+        if (formattedEndDate)   queryParams.append('end_date', formattedEndDate);
+
         // Fetch stats from API
         fetch(`/manager/api/reservation-stats?${queryParams.toString()}`)
             .then(response => response.json())
@@ -577,6 +589,21 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     }
     
+    // Function to convert date format if needed
+    function convertDateFormat(dateString) {
+        if (!dateString) return '';
+        
+        // Check if it's in YYYY-MM-DD format
+        const yyyyMmDdRegex = /^\d{4}-\d{2}-\d{2}$/;
+        if (yyyyMmDdRegex.test(dateString)) {
+            // Convert from YYYY-MM-DD to DD/MM/YYYY
+            const parts = dateString.split('-');
+            return `${parts[2]}/${parts[1]}/${parts[0]}`;
+        }
+        
+        return dateString; // Return the original string if it's already correct
+    }
+    
     // Function to display reservation statistics
     function displayReservationStats(stats) {
         const statsContainer = document.getElementById('reservationStats');
@@ -588,10 +615,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     <p>Nombre total de repas</p>
                 </div>
             </div>
-        `;
-        
-        // Stats by status
-        html += `
             <div class="card mb-3">
                 <div class="card-header">Repas par statut</div>
                 <div class="card-body">
@@ -609,7 +632,7 @@ document.addEventListener('DOMContentLoaded', function() {
             html += `
                 <tr>
                     <td>${status}</td>
-                    <td>${count}</td>
+                    <td>${getCountValue(count)}</td>
                 </tr>
             `;
         }
@@ -619,10 +642,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     </table>
                 </div>
             </div>
-        `;
-        
-        // Stats by user
-        html += `
             <div class="card">
                 <div class="card-header">Repas par utilisateur</div>
                 <div class="card-body">
@@ -630,17 +649,24 @@ document.addEventListener('DOMContentLoaded', function() {
                         <thead>
                             <tr>
                                 <th>Utilisateur</th>
-                                <th>Nombre de repas</th>
+                                <th>Total repas</th>
+                                <th>Voile</th>
+                                <th>Bar</th>
+                                <th>Bénévole</th>
                             </tr>
                         </thead>
                         <tbody>
         `;
         
+        // build rows using the new per-user counts
         for (const [user, count] of Object.entries(stats.by_user)) {
             html += `
                 <tr>
                     <td>${user}</td>
-                    <td>${count}</td>
+                    <td>${getCountValue(count.total)}</td>
+                    <td>${getCountValue(count.voile)}</td>
+                    <td>${getCountValue(count.bar)}</td>
+                    <td>${getCountValue(count.benevole)}</td>
                 </tr>
             `;
         }
@@ -729,11 +755,15 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
+        // Convert dates to the format expected by the backend if needed
+        const formattedStartDate = convertDateFormat(startDate);
+        const formattedEndDate = convertDateFormat(endDate);
+        
         // Prepare the query string
         let queryParams = new URLSearchParams({
             format: format,
-            start_date: startDate,
-            end_date: endDate
+            start_date: formattedStartDate,
+            end_date: formattedEndDate
         });
         
         // Create the export URL and navigate to it
@@ -1079,4 +1109,21 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('isVolunteerCheckbox').checked = false; // Uncheck if hidden
         }
     });
+    
+    function getCountValue(count) {
+        if (typeof count === 'number') return count;
+        if (typeof count === 'object' && count !== null) {
+            // Try common property names for the count value
+            if (count.count !== undefined) return count.count;
+            if (count.value !== undefined) return count.value;
+            if (count.total !== undefined) return count.total;
+            // If no known property found, return first number property
+            for (const key in count) {
+                if (typeof count[key] === 'number') {
+                    return count[key];
+                }
+            }
+        }
+        return 0; // Default fallback
+    }
 });
