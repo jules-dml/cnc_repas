@@ -38,7 +38,6 @@ urlpatterns = [
     path("manager/api/users", views.get_users, name="get_users"),
     path("manager/api/users/add", views.add_user, name="add_user"),
     path("manager/api/users/update/<int:user_id>", views.update_user, name="update_user"),
-    path("manager/api/users/delete/<int:user_id>", views.delete_user, name="delete_user"),
 
     # Export API endpoint
     path("manager/api/export_reservations", views.export_reservations, name="export_reservations"),

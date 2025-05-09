@@ -430,25 +430,6 @@ def update_user(request, user_id):
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)})
 
-@csrf_exempt
-@manager_required
-def delete_user(request, user_id):
-    """API endpoint to delete a user"""
-    if request.method != 'DELETE':
-        return JsonResponse({'success': False, 'error': 'Only DELETE method is allowed'})
-    
-    try:
-        user = get_object_or_404(CustomUser, id=user_id)
-        
-        if user.id == request.user.id:
-            return JsonResponse({'success': False, 'error': 'Cannot delete your own account'})
-        
-        user.delete()
-        return JsonResponse({'success': True})
-        
-    except Exception as e:
-        return JsonResponse({'success': False, 'error': str(e)})
-
 @manager_required
 def export_reservations(request):
     """Export reservations to CSV or PDF format based on filter criteria"""

@@ -874,13 +874,7 @@ document.addEventListener('DOMContentLoaded', function() {
             editButton.innerHTML = '<i class="bi bi-pencil"></i> Modifier';  // Added text fallback
             editButton.addEventListener('click', () => editUser(user));
             
-            const deleteButton = document.createElement('button');
-            deleteButton.className = 'btn btn-sm btn-outline-danger';
-            deleteButton.innerHTML = '<i class="bi bi-trash"></i> Supprimer';  // Added text fallback
-            deleteButton.addEventListener('click', () => confirmDeleteUser(user.id, user.name));
-            
             actionsCell.appendChild(editButton);
-            actionsCell.appendChild(deleteButton);
             
             row.appendChild(nameCell);
             row.appendChild(usernameCell);
@@ -907,12 +901,6 @@ document.addEventListener('DOMContentLoaded', function() {
         // Show the modal
         const userFormModal = new bootstrap.Modal(document.getElementById('userFormModal'));
         userFormModal.show();
-    }
-    
-    function confirmDeleteUser(userId, userName) {
-        if (confirm(`Êtes-vous sûr de vouloir supprimer l'utilisateur ${userName}?`)) {
-            deleteUser(userId);
-        }
     }
     
     function createUser(userData) {
@@ -966,25 +954,6 @@ document.addEventListener('DOMContentLoaded', function() {
         .catch(error => {
             console.error('Error:', error);
             alert('Une erreur est survenue lors de la mise à jour');
-        });
-    }
-    
-    function deleteUser(userId) {
-        fetch(`/manager/api/users/delete/${userId}`, {
-            method: 'DELETE'
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // Reload users list
-                loadUsers();
-            } else {
-                alert('Erreur lors de la suppression: ' + data.error);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Une erreur est survenue lors de la suppression');
         });
     }
     
