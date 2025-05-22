@@ -370,6 +370,21 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Show the modal
         dayDetailsModal.show();
+
+        // Ajout : configurer le bouton "Ajouter" pour ouvrir le modal d'ajout de réservation pour ce jour
+        const addBtn = document.getElementById('addReservationFromDayDetails');
+        if (addBtn) {
+            addBtn.onclick = function() {
+                // Pré-remplir la date et le titre dans le modal d'ajout de réservation
+                document.getElementById('reservationDate').value = dateKey;
+                document.getElementById('reservationDay').textContent = dayName + ' ' + formatDisplayDate(dateKey);
+                // Fermer le modal de détail du jour
+                dayDetailsModal.hide();
+                // Ouvrir le modal d'ajout de réservation
+                const reservationModal = new bootstrap.Modal(document.getElementById('reservationModal'));
+                reservationModal.show();
+            };
+        }
     }
 
     // Function to update reservation status
