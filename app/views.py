@@ -273,6 +273,7 @@ def get_week_reservations(request):
             formatted_reservations[date_str].append({
                 'id': reservation.id,
                 'user_id': reservation.user.id,
+                'user_user_id': reservation.user.user_id,  # Ajouté pour affichage dans le détail du jour
                 'user_name': str(reservation.user.name),
                 'status': status,
                 'benevole': reservation.benevole,
@@ -334,6 +335,7 @@ def get_users(request):
         for user in users:
             users_data.append({
                 'id': user.id,
+                'user_id': user.user_id,  # déjà présent
                 'name': user.name,
                 'username': user.username,
                 'email': user.email or '',
@@ -486,10 +488,11 @@ def export_to_csv(reservations):
     buffer = StringIO()
     writer = csv.writer(buffer)
     
-    writer.writerow(['Date', 'Nom', 'Status'])
+    writer.writerow(['ID', 'Date', 'Nom', 'Status'])
     for reservation in reservations:
         status = "Bénévole" if reservation.benevole else reservation.user.status
         writer.writerow([
+            reservation.user.user_id,
             reservation.date.strftime('%d/%m/%Y'),
             reservation.user.name,
             status,
@@ -570,9 +573,12 @@ def export_to_pdf(reservations, start_date=None, end_date=None):
     user_counts = {}
     for reservation in reservations:
         user_name = reservation.user.name
+        user_id = reservation.user.user_id
+        # initialize if needed
         if user_name not in user_counts:
-            user_counts[user_name] = {"total": 0, "voile": 0, "bar": 0, "benevole": 0}
+            user_counts[user_name] = {"user_id": user_id, "total": 0, "voile": 0, "bar": 0, "benevole": 0}
         
+        user_counts[user_name]["user_id"] = user_id  # Toujours mettre à jour (au cas où)
         user_counts[user_name]["total"] += 1
         if reservation.user.status in ["Moniteur", "Aide Moniteur"] and reservation.benevole == False:
             user_counts[user_name]["voile"] += 1
@@ -583,19 +589,20 @@ def export_to_pdf(reservations, start_date=None, end_date=None):
     
     # Display user statistics
     elements.append(Paragraph("Nombre de repas par utilisateur:", subtitle_style))
-    user_data = [['Utilisateur', 'Total repas', 'Voile', 'Bar', "Bénévole"]]
-    for user_name, counts in user_counts.items():        
+    user_data = [['ID', 'Utilisateur', 'Total repas', 'Voile', 'Bar', "Bénévole"]]
+    for user_name, counts in user_counts.items():
         user_data.append([
-            user_name, 
-            str(counts["total"]), 
-            str(counts["voile"]), 
+            counts.get("user_id", "-"),
+            user_name,
+            str(counts["total"]),
+            str(counts["voile"]),
             str(counts["bar"]),
             str(counts["benevole"])
         ])
-    total = ['Total', 
-             str(total_meals), 
-             str(sum(counts["voile"] for counts in user_counts.values())), 
-             str(sum(counts["bar"] for counts in user_counts.values())), 
+    total = ['-', 'Total',
+             str(total_meals),
+             str(sum(counts["voile"] for counts in user_counts.values())),
+             str(sum(counts["bar"] for counts in user_counts.values())),
              str(sum(counts["benevole"] for counts in user_counts.values()))
             ]
     user_data.append(total)
@@ -616,12 +623,13 @@ def export_to_pdf(reservations, start_date=None, end_date=None):
     
     # Create table data for reservations list
     elements.append(Paragraph("Liste détaillée des réservations:", subtitle_style))
-    data = [['Date', 'Nom', 'Status']]  # Header row
+    data = [['ID', 'Date', 'Nom', 'Status']]  # Header row
     
     for reservation in reservations:
         # Use 'Bénévole' status if benevole flag is True, otherwise use user's status
         status = "Bénévole" if reservation.benevole else reservation.user.status
         data.append([
+            reservation.user.user_id,
             reservation.date.strftime('%d/%m/%Y'),
             reservation.user.name,
             status,
@@ -697,18 +705,17 @@ def get_reservation_stats(request):
         user_counts = {}
         for reservation in reservations:
             name = reservation.user.name
+            user_id = reservation.user.user_id
             # initialize if needed
             if name not in user_counts:
-                user_counts[name] = {"total": 0, "voile": 0, "bar": 0, "benevole": 0}
+                user_counts[name] = {"user_id": user_id, "total": 0, "voile": 0, "bar": 0, "benevole": 0}
             
+            user_counts[name]["user_id"] = user_id  # Toujours mettre à jour (au cas où)
             user_counts[name]["total"] += 1
-            # voile: non-benevole moniteur/aide-moniteur
-            if reservation.user.status in ["Moniteur", "Aide Moniteur"] and not reservation.benevole:
+            if reservation.user.status in ["Moniteur", "Aide Moniteur"] and reservation.benevole == False:
                 user_counts[name]["voile"] += 1
-            # bénévole
-            elif reservation.benevole or reservation.user.status == "Bénévole":
+            if reservation.benevole or reservation.user.status == "Bénévole":
                 user_counts[name]["benevole"] += 1
-            # bar
             elif reservation.user.status == "Bar":
                 user_counts[name]["bar"] += 1
         

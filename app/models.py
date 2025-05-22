@@ -11,6 +11,13 @@ class CustomUser(AbstractUser):
         BAR = "Bar"
         
     name = models.CharField(max_length=100)
+    user_id = models.CharField(
+        max_length=2,
+        unique=True,
+        verbose_name="ID utilisateur",
+        null=True,    # <-- Ajouté pour migration initiale
+        blank=True    # <-- Ajouté pour migration initiale
+    )
     status = models.CharField(
         max_length=20,
         choices=Status.choices,
@@ -18,8 +25,17 @@ class CustomUser(AbstractUser):
     )
 
     def __str__(self):
-        return self.name
+        return f"{self.name} ({self.user_id})"
     
+    def save(self, *args, **kwargs):
+        if not self.user_id:
+            # Génère un id à 2 chiffres unique (01, 02, ..., 99)
+            for i in range(1, 100):
+                candidate = f"{i:02d}"
+                if not CustomUser.objects.filter(user_id=candidate).exists():
+                    self.user_id = candidate
+                    break
+        super().save(*args, **kwargs)
 
 # Define the Profile model correctly
 class Profile(models.Model):

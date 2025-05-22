@@ -128,6 +128,8 @@ document.addEventListener('DOMContentLoaded', function() {
             addButton.addEventListener('click', function(event) {
                 event.stopPropagation(); // Prevent triggering the day click event
                 document.getElementById('reservationDate').value = dateKey;
+                // Affiche le jour et la date dans un titre (h6)
+                document.getElementById('reservationDay').textContent = getDayName(i) + ' ' + currentDay.getDate() + ' ' + currentDay.toLocaleDateString('fr-FR');
                 const reservationModal = new bootstrap.Modal(document.getElementById('reservationModal'));
                 reservationModal.show();
             });
@@ -209,33 +211,40 @@ document.addEventListener('DOMContentLoaded', function() {
         function renderPeopleList(filteredReservations) {
             const peopleListContainer = document.getElementById('peopleList');
             peopleListContainer.innerHTML = '';
-            
+
             if (filteredReservations && filteredReservations.length > 0) {
                 const table = document.createElement('table');
                 table.className = 'table table-striped';
-                
+
                 // Create table header
                 const thead = document.createElement('thead');
                 const headerRow = document.createElement('tr');
-                
-                ['Nom', 'Status', 'Actions'].forEach(header => {
+
+                // Ajout de la colonne ID
+                ['ID', 'Nom', 'Status', 'Actions'].forEach(header => {
                     const th = document.createElement('th');
                     th.textContent = header;
                     headerRow.appendChild(th);
                 });
-                
+
                 thead.appendChild(headerRow);
                 table.appendChild(thead);
-                
+
                 // Create table body
                 const tbody = document.createElement('tbody');
-                
+
                 filteredReservations.forEach(reservation => {
                     const row = document.createElement('tr');
-                    
+
+                    // Colonne ID utilisateur
+                    const idCell = document.createElement('td');
+                    idCell.textContent = reservation.user_user_id || '-';
+                    row.appendChild(idCell);
+
                     const nameCell = document.createElement('td');
                     nameCell.textContent = reservation.user_name;
-                    
+                    row.appendChild(nameCell);
+
                     const statusCell = document.createElement('td');
                     
                     // Get the base status from the reservation
@@ -309,6 +318,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     actionCell.appendChild(deleteButton);
                     
+                    row.appendChild(idCell);
                     row.appendChild(nameCell);
                     row.appendChild(statusCell);
                     row.appendChild(actionCell);
@@ -424,8 +434,22 @@ document.addEventListener('DOMContentLoaded', function() {
     
     document.getElementById('validateReservation').addEventListener('click', function() {
         const reservationDate = document.getElementById('reservationDate').value;
-        const userId = document.getElementById('userDropdown').value;
+        let userId = document.getElementById('userDropdown').value;
+        const userIdInput = document.getElementById('userIdInput').value;
         const isVolunteer = document.getElementById('isVolunteerCheckbox').checked;
+
+        // Si l'input id est rempli, on l'utilise pour trouver l'utilisateur correspondant
+        if (userIdInput) {
+            // Normalise l'id à 2 chiffres (ex: "1" => "01")
+            const normalizedId = userIdInput.padStart(2, '0');
+            const user = (window.allUsers || []).find(u => u.user_id === normalizedId);
+            if (user) {
+                userId = user.id;
+            } else {
+                alert("Aucun utilisateur avec cet ID.");
+                return;
+            }
+        }
         
         fetch('api/create_reservation', {
             method: 'POST',
@@ -648,6 +672,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <table class="table table-sm">
                         <thead>
                             <tr>
+                                <th>ID</th>
                                 <th>Utilisateur</th>
                                 <th>Total repas</th>
                                 <th>Voile</th>
@@ -660,8 +685,11 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // build rows using the new per-user counts
         for (const [user, count] of Object.entries(stats.by_user)) {
+            // Ajout récupération de l'id utilisateur si présent
+            const userId = count.user_id || '-';
             html += `
                 <tr>
+                    <td>${userId}</td>
                     <td>${user}</td>
                     <td>${getCountValue(count.total)}</td>
                     <td>${getCountValue(count.voile)}</td>
@@ -788,6 +816,9 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('userFormModalLabel').textContent = 'Ajouter un utilisateur';
         document.getElementById('passwordFields').style.display = 'block';
         
+        // Hide user ID field by default
+        document.getElementById('userIdFieldContainer').style.display = 'none';
+        
         // Show the form modal
         const userFormModal = new bootstrap.Modal(document.getElementById('userFormModal'));
         userFormModal.show();
@@ -888,24 +919,31 @@ document.addEventListener('DOMContentLoaded', function() {
         users.forEach(user => {
             const row = document.createElement('tr');
             
+            const idCell = document.createElement('td');
+            idCell.textContent = user.user_id ? user.user_id : '-';
+            
             const nameCell = document.createElement('td');
             nameCell.textContent = user.name;
-            
+            row.appendChild(nameCell);
+
             const usernameCell = document.createElement('td');
             usernameCell.textContent = user.username;
-            
+            row.appendChild(usernameCell);
+
             const statusCell = document.createElement('td');
             statusCell.textContent = user.status;
+            row.appendChild(statusCell);
             
             const actionsCell = document.createElement('td');
             
             const editButton = document.createElement('button');
             editButton.className = 'btn btn-sm btn-outline-primary me-2';
-            editButton.innerHTML = '<i class="bi bi-pencil"></i> Modifier';  // Added text fallback
+            editButton.innerHTML = '<i class="bi bi-pencil"></i> Modifier';
             editButton.addEventListener('click', () => editUser(user));
             
             actionsCell.appendChild(editButton);
             
+            row.appendChild(idCell);
             row.appendChild(nameCell);
             row.appendChild(usernameCell);
             row.appendChild(statusCell);
@@ -916,13 +954,15 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function editUser(user) {
-        // Populate the form with user data
+        // Affiche l'id utilisateur en lecture seule lors de l'édition
         document.getElementById('userId').value = user.id;
         document.getElementById('userName').value = user.name;
         document.getElementById('userUsername').value = user.username;
         document.getElementById('userEmail').value = user.email || '';
         document.getElementById('userStatus').value = user.status;
         document.getElementById('userPassword').value = '';
+        document.getElementById('userIdField').value = user.user_id || '';
+        document.getElementById('userIdFieldContainer').style.display = 'block';
         
         // Change the title and hide password field (optional for edit)
         document.getElementById('userFormModalLabel').textContent = 'Modifier un utilisateur';
@@ -1125,5 +1165,34 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
         return 0; // Default fallback
+    }
+    
+    // Lors du chargement initial, stocker la liste des utilisateurs pour la recherche par id
+    window.addEventListener('DOMContentLoaded', function() {
+        fetch('/manager/api/users')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    window.allUsers = data.users;
+                    populateUserDropdown(data.users);
+                }
+            });
+    });
+    
+    // Ajout de l'id dans le menu déroulant d'ajout de réservation
+    function populateUserDropdown(users) {
+        const dropdown = document.getElementById('userDropdown');
+        dropdown.innerHTML = '<option value="" disabled selected>Choisir un utilisateur</option>';
+        users.forEach(user => {
+            const option = document.createElement('option');
+            option.value = user.id;
+            option.setAttribute('data-status', user.status);
+            if (user.user_id) {
+                option.textContent = `[${user.user_id}] ${user.name}`;
+            } else {
+                option.textContent = user.name;
+            }
+            dropdown.appendChild(option);
+        });
     }
 });

@@ -61,7 +61,10 @@
             <div class="modal-body">
                 <form id="reservationForm">
                     <div class="mb-3">
-                        <label for="reservationDate" class="form-label">Date</label>
+                        <h6 id="reservationDay" class="mb-0"></h6>
+                    </div>
+                    <div class="mb-3" style="display:none;">
+                        <!-- Champ caché pour stocker la vraie date -->
                         <input type="text" id="reservationDate" class="form-control" readonly>
                     </div>
                     <div class="mb-3">
@@ -69,9 +72,13 @@
                         <select id="userDropdown" class="form-select">
                             <option value="" disabled selected>Choisir un utilisateur</option>
                             {% for user in users %}
-                                <option value="{{ user.id }}" data-status="{{ user.status }}">{{ user.name }}</option>
+                                <option value="{{ user.id }}" data-status="{{ user.status }}">
+                                    [{{ user.user_id }}] {{ user.name }}
+                                </option>
                             {% endfor %}
                         </select>
+                        <small class="form-text text-muted">Ou saisir l'ID utilisateur :</small>
+                        <input type="number" inputmode="numeric" pattern="[0-9]*" id="userIdInput" class="form-control mt-1" maxlength="2" placeholder="ID utilisateur">
                     </div>
                     <div class="mb-3 form-check" id="volunteerCheckboxContainer" style="display: none;">
                         <input type="checkbox" class="form-check-input" id="isVolunteerCheckbox">
@@ -167,11 +174,11 @@
                         <i class="bi bi-plus-circle"></i> Ajouter un utilisateur
                     </button>
                 </div>
-                
                 <div class="table-responsive">
                     <table class="table table-striped">
                         <thead>
                             <tr>
+                                <th>ID</th>
                                 <th>Nom</th>
                                 <th>Nom d'utilisateur</th>
                                 <th>Status</th>
@@ -181,7 +188,7 @@
                         <tbody id="usersTableBody">
                             <!-- Users will be loaded here -->
                             <tr>
-                                <td colspan="4" class="text-center">Chargement des utilisateurs...</td>
+                                <td colspan="5" class="text-center">Chargement des utilisateurs...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -206,7 +213,10 @@
             <div class="modal-body">
                 <form id="userForm">
                     <input type="hidden" id="userId" name="userId">
-                    
+                    <div class="mb-3" id="userIdFieldContainer" style="display:none;">
+                        <label for="userIdField" class="form-label">ID utilisateur (2 chiffres)</label>
+                        <input type="text" class="form-control" id="userIdField" name="user_id" maxlength="2" readonly>
+                    </div>
                     <div class="mb-3">
                         <label for="userName" class="form-label">Nom</label>
                         <input type="text" class="form-control" id="userName" name="name" required>
