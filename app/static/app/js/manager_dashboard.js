@@ -484,6 +484,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     setTimeout(() => {
                         document.getElementById('extraReservationsSaved').style.display = 'none';
                     }, 1500);
+
+                    // Fermer le modal des détails du jour
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('dayDetailsModal'));
+                    if (modal) {
+                        modal.hide();
+                    }
+
                     // Refresh calendar
                     displayWeek(monday);
                 }
