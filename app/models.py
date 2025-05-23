@@ -59,3 +59,18 @@ class Reservation(models.Model):
     def __str__(self):
         status = "Bénévole" if self.benevole else self.user.status
         return f"{self.user.username} - {self.date} ({status})"
+
+class ExtraReservation(models.Model):
+    CATEGORY_CHOICES = [
+        ('EDS', 'EDS'),
+        ('Autre', 'Autre'),
+    ]
+    date = models.DateField()
+    category = models.CharField(max_length=10, choices=CATEGORY_CHOICES)
+    count = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        unique_together = ['date', 'category']
+
+    def __str__(self):
+        return f"{self.date} - {self.category}: {self.count}"

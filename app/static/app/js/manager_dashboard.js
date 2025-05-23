@@ -150,7 +150,44 @@ document.addEventListener('DOMContentLoaded', function() {
                 noReservations.textContent = 'Aucune réservation';
                 userListContainer.appendChild(noReservations);
             }
-            
+
+            // Afficher les extras EDS/Autre si > 0
+            fetch(`/manager/api/extra_reservations?date=${dateKey}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        const eds = data.extras.EDS || 0;
+                        const autre = data.extras.Autre || 0;
+                        if (eds > 0 || autre > 0) {
+                            const extrasElem = document.createElement('div');
+                            extrasElem.className = 'extra-counts mt-2';
+                            if (eds > 0) {
+                                const edsSpan = document.createElement('span');
+                                edsSpan.textContent = `EDS: ${eds}`;
+                                edsSpan.style.display = 'inline-block';
+                                edsSpan.style.backgroundColor = '#f0f8ff';
+                                edsSpan.style.color = '#007bff';
+                                edsSpan.style.padding = '4px 8px';
+                                edsSpan.style.borderRadius = '4px';
+                                edsSpan.style.marginRight = '8px';
+                                extrasElem.appendChild(edsSpan);
+                            }
+                            if (autre > 0) {
+                                const autreSpan = document.createElement('span');
+                                autreSpan.textContent = `Autre: ${autre}`;
+                                autreSpan.style.display = 'inline-block';
+                                autreSpan.style.backgroundColor = '#fff3cd';
+                                autreSpan.style.color = '#856404';
+                                autreSpan.style.padding = '4px 8px';
+                                autreSpan.style.borderRadius = '4px';
+                                extrasElem.appendChild(autreSpan);
+                            }
+                            userListContainer.appendChild(extrasElem);
+                        }
+                    }
+                })
+                .catch(() => {/* ignore errors */});
+
             dayCol.appendChild(dayHeader);
             dayCol.appendChild(userListContainer);
             daysContainer.appendChild(dayCol);
@@ -161,32 +198,58 @@ document.addEventListener('DOMContentLoaded', function() {
     // Function to show day details in modal
     function showDayDetails(dateKey, dayName, reservations) {
         const dayDetailsModal = new bootstrap.Modal(document.getElementById('dayDetailsModal'));
-        
-        // Set the day title
         document.getElementById('detailDayTitle').textContent = dayName + ' - ' + formatDisplayDate(dateKey);
-        
-        // Calculate statistics by status
-        const stats = calculateStatusStats(reservations);
-        
-        // Display statistics
-        const statsContainer = document.getElementById('statusStats');
-        statsContainer.innerHTML = '';
-        
-        Object.keys(stats).forEach(status => {
-            const statElement = document.createElement('div');
-            statElement.className = 'stat-item text-center mb-3';
-            
-            const count = document.createElement('h3');
-            count.textContent = stats[status];
-            
-            const label = document.createElement('p');
-            label.textContent = status;
-            
-            statElement.appendChild(count);
-            statElement.appendChild(label);
-            statsContainer.appendChild(statElement);
-        });
-        
+
+        let stats = calculateStatusStats(reservations);
+
+        // Ajout : charger les extra reservations pour ce jour et mettre à jour les stats
+        fetch(`/manager/api/extra_reservations?date=${dateKey}`)
+            .then(response => response.json())
+            .then(data => {
+                // Ajoute EDS et Autre dans les stats du haut
+                if (data.success) {
+                    const eds = data.extras.EDS || 0;
+                    const autre = data.extras.Autre || 0;
+                    if (eds > 0) stats['EDS'] = (stats['EDS'] || 0) + eds;
+                    if (autre > 0) stats['Autre'] = (stats['Autre'] || 0) + autre;
+                    // Met à jour le total
+                    stats['Total'] = (stats['Total'] || 0) + eds + autre;
+                    document.getElementById('edsCount').value = eds;
+                    document.getElementById('autreCount').value = autre;
+                } else {
+                    document.getElementById('edsCount').value = 0;
+                    document.getElementById('autreCount').value = 0;
+                }
+                // Affiche les stats (Total toujours en premier, puis le reste)
+                const statsContainer = document.getElementById('statusStats');
+                statsContainer.innerHTML = '';
+                // Affiche d'abord le total
+                if ('Total' in stats) {
+                    const statElement = document.createElement('div');
+                    statElement.className = 'stat-item text-center mb-3';
+                    const count = document.createElement('h3');
+                    count.textContent = stats['Total'];
+                    const label = document.createElement('p');
+                    label.textContent = 'Total';
+                    statElement.appendChild(count);
+                    statElement.appendChild(label);
+                    statsContainer.appendChild(statElement);
+                }
+                // Puis les autres statuts (sauf Total)
+                Object.keys(stats).forEach(status => {
+                    if (status === 'Total') return;
+                    const statElement = document.createElement('div');
+                    statElement.className = 'stat-item text-center mb-3';
+                    const count = document.createElement('h3');
+                    count.textContent = stats[status];
+                    const label = document.createElement('p');
+                    label.textContent = status;
+                    statElement.appendChild(count);
+                    statElement.appendChild(label);
+                    statsContainer.appendChild(statElement);
+                });
+            });
+
         // Populate the status filter dropdown with unique statuses
         const statusFilter = document.getElementById('statusFilter');
         statusFilter.innerHTML = '<option value="all">Tous les statuts</option>';
@@ -385,6 +448,47 @@ document.addEventListener('DOMContentLoaded', function() {
                 reservationModal.show();
             };
         }
+        
+        // Ajout: charger les extra reservations pour ce jour
+        fetch(`/manager/api/extra_reservations?date=${dateKey}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('edsCount').value = data.extras.EDS || 0;
+                    document.getElementById('autreCount').value = data.extras.Autre || 0;
+                } else {
+                    document.getElementById('edsCount').value = 0;
+                    document.getElementById('autreCount').value = 0;
+                }
+            });
+        // Ajout: bouton enregistrer extra reservations
+        document.getElementById('saveExtraReservationsBtn').onclick = function() {
+            const eds = parseInt(document.getElementById('edsCount').value) || 0;
+            const autre = parseInt(document.getElementById('autreCount').value) || 0;
+            fetch('/manager/api/extra_reservations/update', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrfToken()
+                },
+                body: JSON.stringify({
+                    date: dateKey,
+                    extras: { EDS: eds, Autre: autre }
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Feedback visuel
+                    document.getElementById('extraReservationsSaved').style.display = '';
+                    setTimeout(() => {
+                        document.getElementById('extraReservationsSaved').style.display = 'none';
+                    }, 1500);
+                    // Refresh calendar
+                    displayWeek(monday);
+                }
+            });
+        };
     }
 
     // Function to update reservation status
@@ -667,6 +771,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <tbody>
         `;
         
+        // lignes existantes par statut
         for (const [status, count] of Object.entries(stats.by_status)) {
             html += `
                 <tr>
@@ -675,7 +780,26 @@ document.addEventListener('DOMContentLoaded', function() {
                 </tr>
             `;
         }
-        
+        // ajout des extras si présents
+        if (stats.extras) {
+            if (stats.extras.EDS !== undefined) {
+                html += `
+                    <tr>
+                        <td>EDS</td>
+                        <td>${stats.extras.EDS}</td>
+                    </tr>
+                `;
+            }
+            if (stats.extras.Autre !== undefined) {
+                html += `
+                    <tr>
+                        <td>Autre</td>
+                        <td>${stats.extras.Autre}</td>
+                    </tr>
+                `;
+            }
+        }
+
         html += `
                         </tbody>
                     </table>
@@ -721,6 +845,13 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
         `;
         
+        // Calculer total incluant extras
+        const extrasTotal = (stats.extras?.EDS || 0) + (stats.extras?.Autre || 0);
+        html = html.replace(
+            `<h3>${stats.total_meals}</h3>`,
+            `<h3>${stats.total_meals + extrasTotal}</h3>`
+        );
+
         statsContainer.innerHTML = html;
     }
     

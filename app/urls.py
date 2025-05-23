@@ -51,4 +51,7 @@ urlpatterns = [
 
     # Add this new URL pattern for updating reservation status by ID
     path("api/update_reservation_status/<int:reservation_id>", views.update_reservation_status, name="update_reservation_status_by_id"),
+    # Extra reservations API
+    path("manager/api/extra_reservations", views.get_extra_reservations, name="get_extra_reservations"),
+    path("manager/api/extra_reservations/update", views.update_extra_reservations, name="update_extra_reservations"),
 ]

@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import CustomUser, Reservation
+from .models import CustomUser, Reservation, ExtraReservation
 from django.contrib.auth.models import Group
 import csv
 from django.http import HttpResponse
@@ -60,7 +60,19 @@ class CustomReservationAdmin(admin.ModelAdmin, ExportCsvMixin):
     search_fields = ['user__username', 'date']
     date_hierarchy = 'date'
 
+
+
+class ExtraReservationAdmin(admin.ModelAdmin, ExportCsvMixin):
+    list_display = ['date', 'category', 'count']
+    actions = ['export_as_csv']
+    list_filter = ['date', 'category']
+    search_fields = ['category']
+    date_hierarchy = 'date'
+
+
+
 admin.site.register(CustomUser, CustomUserAdmin)
 admin.site.register(Reservation, CustomReservationAdmin)
+admin.site.register(ExtraReservation, ExtraReservationAdmin)
 
 admin.site.unregister(Group)

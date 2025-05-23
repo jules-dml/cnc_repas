@@ -147,6 +147,30 @@
                                 <div id="peopleList">
                                     <!-- People list will be populated by JavaScript -->
                                 </div>
+                                <!-- Ajout: Extra reservations (EDS/Autre) -->
+                                <div id="extraReservationsSection" class="mt-4">
+                                    <h6>Repas spéciaux</h6>
+                                    <form id="extraReservationsForm" class="row g-2 align-items-center">
+                                        <div class="col-auto">
+                                            <label for="edsCount" class="col-form-label">EDS</label>
+                                        </div>
+                                        <div class="col-auto">
+                                            <input type="number" min="0" id="edsCount" class="form-control" style="width:80px;">
+                                        </div>
+                                        <div class="col-auto">
+                                            <label for="autreCount" class="col-form-label">Autre</label>
+                                        </div>
+                                        <div class="col-auto">
+                                            <input type="number" min="0" id="autreCount" class="form-control" style="width:80px;">
+                                        </div>
+                                        <div class="col-auto">
+                                            <button type="button" id="saveExtraReservationsBtn" class="btn btn-outline-primary btn-sm">Enregistrer</button>
+                                        </div>
+                                        <div class="col-auto" id="extraReservationsSaved" style="display:none;">
+                                            <span class="text-success">✔️</span>
+                                        </div>
+                                    </form>
+                                </div>
                             </div>
                         </div>
                     </div>

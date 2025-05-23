@@ -2,13 +2,13 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse, HttpResponse
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_POST, require_GET
 from django.conf import settings
 import json
 import os
 from .forms import LoginForm
 from datetime import datetime, timedelta
-from .models import Reservation
+from .models import Reservation, ExtraReservation
 from django.contrib import messages
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.forms import PasswordChangeForm
@@ -467,18 +467,22 @@ def export_reservations(request):
         # Get all reservations within the date range
         reservations = Reservation.objects.filter(**query_args).select_related('user').order_by('date')
         
+        # Récupérer extras
+        extras_qs = ExtraReservation.objects.filter(**query_args)
+        extras_counts = {e.category: e.count for e in extras_qs}
+
         # Generate export file based on format
         if export_format == 'csv':
-            return export_to_csv(reservations)
+            return export_to_csv(reservations, extras_counts)
         elif export_format == 'pdf':
-            return export_to_pdf(reservations, start_date, end_date)
+            return export_to_pdf(reservations, start_date, end_date, extras_counts)
         else:
             return HttpResponse("Format non supporté", status=400)
             
     except Exception as e:
         return HttpResponse(f"Erreur lors de l'exportation: {str(e)}", status=500)
 
-def export_to_csv(reservations):
+def export_to_csv(reservations, extras_counts):
     """Generate a CSV file from reservation data"""
     date = datetime.now().strftime('%d-%m-%Y')
     response = HttpResponse(content_type='text/csv')
@@ -487,7 +491,19 @@ def export_to_csv(reservations):
     # Utiliser StringIO + UTF-8-sig pour les accents (et compatibilité Excel)
     buffer = StringIO()
     writer = csv.writer(buffer)
-    
+
+    # Stats extras
+    writer.writerow([])
+    writer.writerow(['Repas spéciaux', 'Nombre'])
+    for cat, cnt in extras_counts.items():
+        writer.writerow([cat, cnt])
+    writer.writerow([])
+
+    # Total incluant extras
+    total_extras = sum(extras_counts.values())
+    writer.writerow(['Total repas', len(reservations) + total_extras])
+    writer.writerow([])
+
     writer.writerow(['ID', 'Date', 'Nom', 'Status'])
     for reservation in reservations:
         status = "Bénévole" if reservation.benevole else reservation.user.status
@@ -502,7 +518,7 @@ def export_to_csv(reservations):
     return response
 
 
-def export_to_pdf(reservations, start_date=None, end_date=None):
+def export_to_pdf(reservations, start_date=None, end_date=None, extras_counts=None):
     """Generate a PDF file from reservation data"""
     response = HttpResponse(content_type='application/pdf')
     date = datetime.now().strftime('%d-%m-%Y')
@@ -536,8 +552,9 @@ def export_to_pdf(reservations, start_date=None, end_date=None):
     elements.append(Paragraph(" ", normal_style))  # Add some spacing
 
     # Add general stats
-    total_meals = len(reservations)
-    elements.append(Paragraph(f"Nombre total de repas: {total_meals}", subtitle_style))
+    total_reservations = len(reservations)
+    total_extras = sum(extras_counts.values()) if extras_counts else 0
+    elements.append(Paragraph(f"Nombre total de repas: {total_reservations + total_extras}", subtitle_style))
     elements.append(Paragraph(" ", normal_style))
     
     # Count meals by status
@@ -568,7 +585,24 @@ def export_to_pdf(reservations, start_date=None, end_date=None):
     ]))
     elements.append(status_table)
     elements.append(Paragraph(" ", normal_style))
-    
+
+    # Ajout : statistiques extras
+    if extras_counts:
+        elements.append(Paragraph("Repas spéciaux:", subtitle_style))
+        extras_data = [['Catégorie', 'Nombre']]
+        for cat, cnt in extras_counts.items():
+            extras_data.append([cat, str(cnt)])
+        extras_table = Table(extras_data, repeatRows=1)
+        extras_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ]))
+        elements.append(extras_table)
+        elements.append(Paragraph(" ", normal_style))
+
     # Count meals by user
     user_counts = {}
     for reservation in reservations:
@@ -600,7 +634,7 @@ def export_to_pdf(reservations, start_date=None, end_date=None):
             str(counts["benevole"])
         ])
     total = ['-', 'Total',
-             str(total_meals),
+             str(total_reservations),
              str(sum(counts["voile"] for counts in user_counts.values())),
              str(sum(counts["bar"] for counts in user_counts.values())),
              str(sum(counts["benevole"] for counts in user_counts.values()))
@@ -719,12 +753,17 @@ def get_reservation_stats(request):
             elif reservation.user.status == "Bar":
                 user_counts[name]["bar"] += 1
         
+        # Récupérer les extra_reservations dans la même plage
+        extras_qs = ExtraReservation.objects.filter(**query_args)
+        extras_counts = {e.category: e.count for e in extras_qs}
+
         return JsonResponse({
             'success': True,
             'stats': {
                 'total_meals': total_meals,
                 'by_status': status_counts,
-                'by_user': user_counts
+                'by_user': user_counts,
+                'extras': extras_counts          # <-- ajout
             }
         })
     except Exception as e:
@@ -834,3 +873,35 @@ def update_reservation_status(request, reservation_id):
             'success': False,
             'error': str(e)
         })
+
+@require_GET
+@manager_required
+def get_extra_reservations(request):
+    """API GET: ?date=YYYY-MM-DD"""
+    date_str = request.GET.get('date')
+    try:
+        date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
+        extras = ExtraReservation.objects.filter(date=date_obj)
+        data = {e.category: e.count for e in extras}
+        return JsonResponse({'success': True, 'extras': data})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+@csrf_exempt
+@manager_required
+def update_extra_reservations(request):
+    """API POST: {date:..., extras: {EDS: n, Autre: m}}"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Only POST allowed'})
+    try:
+        data = json.loads(request.body)
+        date_str = data.get('date')
+        extras = data.get('extras', {})
+        date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
+        for category, count in extras.items():
+            obj, _ = ExtraReservation.objects.get_or_create(date=date_obj, category=category)
+            obj.count = int(count)
+            obj.save()
+        return JsonResponse({'success': True})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
