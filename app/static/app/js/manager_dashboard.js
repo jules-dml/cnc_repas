@@ -422,14 +422,8 @@ document.addEventListener('DOMContentLoaded', function() {
             // Filter by status if a specific status is selected
             if (selectedStatus !== 'all') {
                 filteredResults = filteredResults.filter(reservation => {
-                    // Uniformise le statut bénévole pour le filtre
                     let status = reservation.status || '';
-                    if (
-                        (status === 'Benevole' || status === 'Bénévole') ||
-                        (reservation.benevole === true)
-                    ) {
-                        status = 'Bénévole';
-                    }
+                    if (reservation.benevole) status = 'Bénévole';
                     return status === selectedStatus;
                 });
             }
@@ -656,7 +650,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Uniformise le statut bénévole
                 let status = reservation.status || 'Non défini';
                 if (
-                    (status === 'Benevole' || status === 'Bénévole') ||
+                    status === 'Bénévole' ||
                     (reservation.benevole === true)
                 ) {
                     status = 'Bénévole';

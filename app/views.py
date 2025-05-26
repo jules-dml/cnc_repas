@@ -268,7 +268,7 @@ def get_week_reservations(request):
                 formatted_reservations[date_str] = []
             
             # Use the benevole field to determine status
-            status = "Benevole" if reservation.benevole else reservation.user.status
+            status = "Bénévole" if reservation.benevole else reservation.user.status
             
             formatted_reservations[date_str].append({
                 'id': reservation.id,
