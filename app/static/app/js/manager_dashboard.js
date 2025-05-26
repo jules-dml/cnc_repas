@@ -1161,9 +1161,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Close modal
                 const modal = bootstrap.Modal.getInstance(document.getElementById('userFormModal'));
                 modal.hide();
-                
-                // Reload users list
+
+                // Reload users list in the user management table
                 loadUsers();
+
+                // Refresh the dropdown for reservation creation
+                fetch('/manager/api/users')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            window.allUsers = data.users;
+                            populateUserDropdown(data.users);
+                        }
+                    });
             } else {
                 alert('Erreur lors de la création: ' + data.error);
             }
