@@ -311,8 +311,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     const statusCell = document.createElement('td');
                     
                     // Get the base status from the reservation
-                    const baseStatus = reservation.user_status || 'Moniteur';
+                    let baseStatus = reservation.user_status || 'Moniteur';
                     const isVolunteer = reservation.benevole;
+                    
+                    // Uniformise le statut bénévole pour l'affichage
+                    let displayStatus = baseStatus;
+                    if (isVolunteer) {
+                        displayStatus = 'Bénévole';
+                    }
                     
                     // Check if the user should have the bénévole option (only for Moniteur or Bar)
                     const canBeVolunteer = baseStatus === 'Moniteur' || baseStatus === 'Bar';
@@ -346,7 +352,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         statusCell.appendChild(statusSelect);
                     } else {
                         // For other statuses, just display the status text
-                        statusCell.textContent = baseStatus;
+                        statusCell.textContent = displayStatus;
                     }
                     
                     const actionCell = document.createElement('td');
@@ -415,9 +421,17 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Filter by status if a specific status is selected
             if (selectedStatus !== 'all') {
-                filteredResults = filteredResults.filter(reservation => 
-                    reservation.status === selectedStatus
-                );
+                filteredResults = filteredResults.filter(reservation => {
+                    // Uniformise le statut bénévole pour le filtre
+                    let status = reservation.status || '';
+                    if (
+                        (status === 'Benevole' || status === 'Bénévole') ||
+                        (reservation.benevole === true)
+                    ) {
+                        status = 'Bénévole';
+                    }
+                    return status === selectedStatus;
+                });
             }
             
             // Render the filtered list
@@ -636,20 +650,27 @@ document.addEventListener('DOMContentLoaded', function() {
     // Function to calculate statistics by status from an array of reservations
     function calculateStatusStats(reservations) {
         const stats = {};
-        
+
         if (reservations && reservations.length > 0) {
             reservations.forEach(reservation => {
-                const status = reservation.status || 'Non défini';
+                // Uniformise le statut bénévole
+                let status = reservation.status || 'Non défini';
+                if (
+                    (status === 'Benevole' || status === 'Bénévole') ||
+                    (reservation.benevole === true)
+                ) {
+                    status = 'Bénévole';
+                }
                 if (!stats[status]) {
                     stats[status] = 0;
                 }
                 stats[status]++;
             });
         }
-        
+
         // Always include a total count
         stats['Total'] = reservations ? reservations.length : 0;
-        
+
         return stats;
     }
     
