@@ -30,21 +30,21 @@ class ExportCsvMixin:
 
 class CustomUserAdmin(UserAdmin, ExportCsvMixin): 
     model = CustomUser
-    list_display = ('name', 'status')
+    list_display = ('name', 'status')  # Ajout du champ Admin
     actions = ["export_as_csv"]
     
     # Override fieldsets completely
     fieldsets = (
         (None, {'fields': ('username', 'password')}),
         ('Personal info', {'fields': ('name', 'status', 'email')}),
-        # Permissions and Important dates sections removed
+        ('Permissions', {'fields': ('is_superuser',)}),  # Ajout du champ Admin
     )
     
     # If you still need to add users via admin, keep this
     add_fieldsets = (
         (None, {
             'classes': ('wide',),
-            'fields': ('username', 'email', 'password1', 'password2', 'name', 'status'),
+            'fields': ('username', 'email', 'password1', 'password2', 'name', 'status', 'is_superuser'),  # Ajout du champ Admin
         }),
     )
 

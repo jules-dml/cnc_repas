@@ -76,12 +76,10 @@ def my_login(request):
     return render(request, 'app/my-login.html', {'loginform': form})
 
 def manager_required(view_func):
-    """Decorator to check if user has manager privileges"""
+    """Decorator to check if user is superuser (admin only access)"""
     @login_required
     def wrapper(request, *args, **kwargs):
-        # Define which statuses can access manager dashboard
-        manager_statuses = ['Moniteur', 'Bar']  # Customize based on your needs
-        if request.user.status in manager_statuses:
+        if request.user.is_superuser:
             return view_func(request, *args, **kwargs)
         return HttpResponseForbidden("Vous n'avez pas l'autorisation d'accéder à cette page.")
     return wrapper
