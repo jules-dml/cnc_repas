@@ -63,6 +63,7 @@ class Reservation(models.Model):
 class ExtraReservation(models.Model):
     CATEGORY_CHOICES = [
         ('EDS', 'EDS'),
+        ('Bénévole', 'Bénévole'),
         ('Autre', 'Autre'),
     ]
     date = models.DateField()

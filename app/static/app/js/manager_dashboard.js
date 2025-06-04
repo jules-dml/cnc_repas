@@ -158,7 +158,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (data.success) {
                         const eds = data.extras.EDS || 0;
                         const autre = data.extras.Autre || 0;
-                        if (eds > 0 || autre > 0) {
+                        const benevole = data.extras.Bénévole || 0;
+                        if (eds > 0 || autre > 0 || benevole > 0) {
                             const extrasElem = document.createElement('div');
                             extrasElem.className = 'extra-counts mt-2';
                             if (eds > 0) {
@@ -180,7 +181,18 @@ document.addEventListener('DOMContentLoaded', function() {
                                 autreSpan.style.color = '#856404';
                                 autreSpan.style.padding = '4px 8px';
                                 autreSpan.style.borderRadius = '4px';
+                                autreSpan.style.marginRight = '8px';
                                 extrasElem.appendChild(autreSpan);
+                            }
+                            if (benevole > 0) {
+                                const benevoleSpan = document.createElement('span');
+                                benevoleSpan.textContent = `Bénévole: ${benevole}`;
+                                benevoleSpan.style.display = 'inline-block';
+                                benevoleSpan.style.backgroundColor = '#e6ffe6';
+                                benevoleSpan.style.color = '#198754';
+                                benevoleSpan.style.padding = '4px 8px';
+                                benevoleSpan.style.borderRadius = '4px';
+                                extrasElem.appendChild(benevoleSpan);
                             }
                             userListContainer.appendChild(extrasElem);
                         }
@@ -206,19 +218,24 @@ document.addEventListener('DOMContentLoaded', function() {
         fetch(`/manager/api/extra_reservations?date=${dateKey}`)
             .then(response => response.json())
             .then(data => {
-                // Ajoute EDS et Autre dans les stats du haut
+                // Ajoute EDS, Autre et Bénévole dans les stats du haut
                 if (data.success) {
                     const eds = data.extras.EDS || 0;
                     const autre = data.extras.Autre || 0;
+                    const benevoleExtra = data.extras.Bénévole || 0;
+                    // Additionne tous les bénévoles (statut + extra) dans la même ligne
+                    if (benevoleExtra > 0) stats['Bénévole'] = (stats['Bénévole'] || 0) + benevoleExtra;
                     if (eds > 0) stats['EDS'] = (stats['EDS'] || 0) + eds;
                     if (autre > 0) stats['Autre'] = (stats['Autre'] || 0) + autre;
                     // Met à jour le total
-                    stats['Total'] = (stats['Total'] || 0) + eds + autre;
+                    stats['Total'] = (stats['Total'] || 0) + eds + autre + benevoleExtra;
                     document.getElementById('edsCount').value = eds;
                     document.getElementById('autreCount').value = autre;
+                    document.getElementById('benevoleCount').value = benevoleExtra;
                 } else {
                     document.getElementById('edsCount').value = 0;
                     document.getElementById('autreCount').value = 0;
+                    document.getElementById('benevoleCount').value = 0;
                 }
                 // Affiche les stats (Total toujours en premier, puis le reste)
                 const statsContainer = document.getElementById('statusStats');
@@ -464,15 +481,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (data.success) {
                     document.getElementById('edsCount').value = data.extras.EDS || 0;
                     document.getElementById('autreCount').value = data.extras.Autre || 0;
+                    document.getElementById('benevoleCount').value = data.extras.Bénévole || 0;
                 } else {
                     document.getElementById('edsCount').value = 0;
                     document.getElementById('autreCount').value = 0;
+                    document.getElementById('benevoleCount').value = 0;
                 }
             });
         // Ajout: bouton enregistrer extra reservations
         document.getElementById('saveExtraReservationsBtn').onclick = function() {
             const eds = parseInt(document.getElementById('edsCount').value) || 0;
             const autre = parseInt(document.getElementById('autreCount').value) || 0;
+            const benevole = parseInt(document.getElementById('benevoleCount').value) || 0;
             fetch('/manager/api/extra_reservations/update', {
                 method: 'POST',
                 headers: {
@@ -481,7 +501,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 body: JSON.stringify({
                     date: dateKey,
-                    extras: { EDS: eds, Autre: autre }
+                    extras: { EDS: eds, Autre: autre, Bénévole: benevole }
                 })
             })
             .then(response => response.json())
@@ -793,16 +813,21 @@ document.addEventListener('DOMContentLoaded', function() {
                         <tbody>
         `;
         
-        // lignes existantes par statut
+        // Additionne tous les bénévoles (statut + extra) dans la même ligne
+        let benevoleTotal = 0;
         for (const [status, count] of Object.entries(stats.by_status)) {
-            html += `
-                <tr>
-                    <td>${status}</td>
-                    <td>${getCountValue(count)}</td>
-                </tr>
-            `;
+            if (status === 'Bénévole') {
+                benevoleTotal += getCountValue(count);
+            } else {
+                html += `
+                    <tr>
+                        <td>${status}</td>
+                        <td>${getCountValue(count)}</td>
+                    </tr>
+                `;
+            }
         }
-        // ajout des extras si présents
+        // Ajout des extras si présents
         if (stats.extras) {
             if (stats.extras.EDS !== undefined) {
                 html += `
@@ -820,6 +845,18 @@ document.addEventListener('DOMContentLoaded', function() {
                     </tr>
                 `;
             }
+            if (stats.extras.Bénévole !== undefined) {
+                benevoleTotal += stats.extras.Bénévole;
+            }
+        }
+        // Affiche la ligne Bénévole si au moins un bénévole
+        if (benevoleTotal > 0) {
+            html += `
+                <tr>
+                    <td>Bénévole</td>
+                    <td>${benevoleTotal}</td>
+                </tr>
+            `;
         }
 
         html += `
@@ -868,7 +905,7 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
         
         // Calculer total incluant extras
-        const extrasTotal = (stats.extras?.EDS || 0) + (stats.extras?.Autre || 0);
+        const extrasTotal = (stats.extras?.EDS || 0) + (stats.extras?.Autre || 0) + (stats.extras?.Bénévole || 0);
         html = html.replace(
             `<h3>${stats.total_meals}</h3>`,
             `<h3>${stats.total_meals + extrasTotal}</h3>`
