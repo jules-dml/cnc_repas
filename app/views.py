@@ -765,12 +765,6 @@ def get_reservation_stats(request):
                 user_counts[name]["bar"] += 1
         
         # Récupérer les extra_reservations dans la même plage
-        extras_qs = ExtraReservation.objects.filter(**query_args)
-        extras_counts = {}
-        for e in extras_qs:
-            extras_counts[e.category] = extras_counts.get(e.category, 0) + e.count
-
-        # Correction : filtrage explicite des extras par plage de dates et agrégation par catégorie
         extras_counts = {}
         if start_date or end_date:
             extras_filter = {}
