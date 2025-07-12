@@ -770,6 +770,23 @@ def get_reservation_stats(request):
         for e in extras_qs:
             extras_counts[e.category] = extras_counts.get(e.category, 0) + e.count
 
+        # Correction : filtrage explicite des extras par plage de dates et agrégation par catégorie
+        extras_counts = {}
+        if start_date or end_date:
+            extras_filter = {}
+            if start_date and end_date:
+                extras_filter['date__range'] = [start_date, end_date]
+            elif start_date:
+                extras_filter['date__gte'] = start_date
+            elif end_date:
+                extras_filter['date__lte'] = end_date
+            extras_qs = ExtraReservation.objects.filter(**extras_filter)
+        else:
+            extras_qs = ExtraReservation.objects.all()
+        # Agrégation par catégorie sur toute la plage
+        for e in extras_qs:
+            extras_counts[e.category] = extras_counts.get(e.category, 0) + e.count
+
         # Ajout : additionne les extras au total et aux stats
         extras_total = sum(extras_counts.values())
         total_meals_with_extras = total_meals + extras_total
