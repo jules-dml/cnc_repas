@@ -719,13 +719,12 @@ def get_reservation_stats(request):
                 start_date = datetime.strptime(start_date_str, '%d/%m/%Y').date()
             except ValueError:
                 return JsonResponse({'success': False, 'error': f"Format de date invalide pour la date de début: {start_date_str}"})
-                
         if end_date_str:
             try:
                 end_date = datetime.strptime(end_date_str, '%d/%m/%Y').date()
             except ValueError:
                 return JsonResponse({'success': False, 'error': f"Format de date invalide pour la date de fin: {end_date_str}"})
-        
+
         # Build query for reservations
         query_args = {}
         if start_date and end_date:
@@ -734,10 +733,10 @@ def get_reservation_stats(request):
             query_args['date__gte'] = start_date
         elif end_date:
             query_args['date__lte'] = end_date
-            
+
         # Get all reservations within the date range
         reservations = Reservation.objects.filter(**query_args).select_related('user')
-        
+
         # Calculate statistics
         total_meals = reservations.count()
         
@@ -767,18 +766,17 @@ def get_reservation_stats(request):
         
         # Récupérer les extra_reservations dans la même plage
         extras_qs = ExtraReservation.objects.filter(**query_args)
-        extras_counts = {e.category: e.count for e in extras_qs}
+        extras_counts = {}
+        for e in extras_qs:
+            extras_counts[e.category] = extras_counts.get(e.category, 0) + e.count
 
-        # Ajout : additionne les extras au total et aux stats par statut
+        # Ajout : additionne les extras au total et aux stats
         extras_total = sum(extras_counts.values())
         total_meals_with_extras = total_meals + extras_total
 
-        # Ajout dans les stats par statut
         status_counts_with_extras = status_counts.copy()
         for cat, cnt in extras_counts.items():
-            # Ajoute chaque catégorie d'extra dans les stats par statut
             status_counts_with_extras[cat] = status_counts_with_extras.get(cat, 0) + cnt
-            # Pour "Bénévole", additionne aussi dans la ligne bénévole
             if cat == "Bénévole":
                 status_counts_with_extras["Bénévole"] = status_counts_with_extras.get("Bénévole", 0) + cnt
 
