@@ -465,9 +465,20 @@ def export_reservations(request):
         # Get all reservations within the date range
         reservations = Reservation.objects.filter(**query_args).select_related('user').order_by('date')
         
-        # Récupérer extras
-        extras_qs = ExtraReservation.objects.filter(**query_args)
-        extras_counts = {e.category: e.count for e in extras_qs}
+        # Récupérer les extras avec filtrage explicite par date
+        extras_filter = {}
+        if start_date and end_date:
+            extras_filter['date__range'] = [start_date, end_date]
+        elif start_date:
+            extras_filter['date__gte'] = start_date
+        elif end_date:
+            extras_filter['date__lte'] = end_date
+        extras_qs = ExtraReservation.objects.filter(**extras_filter)
+        
+        # Agrégation par catégorie
+        extras_counts = {}
+        for e in extras_qs:
+            extras_counts[e.category] = extras_counts.get(e.category, 0) + e.count
 
         # Generate export file based on format
         if export_format == 'csv':
@@ -764,20 +775,18 @@ def get_reservation_stats(request):
             elif reservation.user.status == "Bar":
                 user_counts[name]["bar"] += 1
         
-        # Récupérer les extra_reservations dans la même plage
+        # Récupération des extras avec filtrage explicite par date
+        extras_filter = {}
+        if start_date and end_date:
+            extras_filter['date__range'] = [start_date, end_date]
+        elif start_date:
+            extras_filter['date__gte'] = start_date
+        elif end_date:
+            extras_filter['date__lte'] = end_date
+        extras_qs = ExtraReservation.objects.filter(**extras_filter)
+        
+        # Agrégation par catégorie
         extras_counts = {}
-        if start_date or end_date:
-            extras_filter = {}
-            if start_date and end_date:
-                extras_filter['date__range'] = [start_date, end_date]
-            elif start_date:
-                extras_filter['date__gte'] = start_date
-            elif end_date:
-                extras_filter['date__lte'] = end_date
-            extras_qs = ExtraReservation.objects.filter(**extras_filter)
-        else:
-            extras_qs = ExtraReservation.objects.all()
-        # Agrégation par catégorie sur toute la plage
         for e in extras_qs:
             extras_counts[e.category] = extras_counts.get(e.category, 0) + e.count
 
