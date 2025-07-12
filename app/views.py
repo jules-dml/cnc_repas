@@ -486,7 +486,6 @@ def export_to_csv(reservations, extras_counts):
     response = HttpResponse(content_type='text/csv')
     response['Content-Disposition'] = f'attachment; filename="reservations-{date}.csv"'
 
-    # Utiliser StringIO + UTF-8-sig pour les accents (et compatibilité Excel)
     buffer = StringIO()
     writer = csv.writer(buffer)
 
@@ -500,6 +499,21 @@ def export_to_csv(reservations, extras_counts):
     # Total incluant extras
     total_extras = sum(extras_counts.values())
     writer.writerow(['Total repas', len(reservations) + total_extras])
+    writer.writerow([])
+
+    # Ajout : stats par statut
+    status_counts = {}
+    for reservation in reservations:
+        status = "Bénévole" if reservation.benevole else reservation.user.status
+        status_counts[status] = status_counts.get(status, 0) + 1
+    # Ajoute les extras dans les stats par statut
+    for cat, cnt in extras_counts.items():
+        status_counts[cat] = status_counts.get(cat, 0) + cnt
+        if cat == "Bénévole":
+            status_counts["Bénévole"] = status_counts.get("Bénévole", 0) + cnt
+    writer.writerow(['Statut', 'Nombre de repas'])
+    for status, count in status_counts.items():
+        writer.writerow([status, count])
     writer.writerow([])
 
     writer.writerow(['ID', 'Date', 'Nom', 'Status'])
@@ -558,19 +572,19 @@ def export_to_pdf(reservations, start_date=None, end_date=None, extras_counts=No
     # Count meals by status
     status_counts = {}
     for reservation in reservations:
-        # Use 'Bénévole' status if benevole flag is True, otherwise use user's status
         status = "Bénévole" if reservation.benevole else reservation.user.status
-        if status in status_counts:
-            status_counts[status] += 1
-        else:
-            status_counts[status] = 1
-    
-    # Display status statistics
+        status_counts[status] = status_counts.get(status, 0) + 1
+    # Ajoute les extras dans les stats par statut
+    if extras_counts:
+        for cat, cnt in extras_counts.items():
+            status_counts[cat] = status_counts.get(cat, 0) + cnt
+            if cat == "Bénévole":
+                status_counts["Bénévole"] = status_counts.get("Bénévole", 0) + cnt
+
     elements.append(Paragraph("Nombre de repas par statut:", subtitle_style))
     status_data = [['Statut', 'Nombre de repas']]
     for status, count in status_counts.items():
         status_data.append([status, str(count)])
-    
     status_table = Table(status_data, repeatRows=1)
     status_table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
@@ -755,13 +769,26 @@ def get_reservation_stats(request):
         extras_qs = ExtraReservation.objects.filter(**query_args)
         extras_counts = {e.category: e.count for e in extras_qs}
 
+        # Ajout : additionne les extras au total et aux stats par statut
+        extras_total = sum(extras_counts.values())
+        total_meals_with_extras = total_meals + extras_total
+
+        # Ajout dans les stats par statut
+        status_counts_with_extras = status_counts.copy()
+        for cat, cnt in extras_counts.items():
+            # Ajoute chaque catégorie d'extra dans les stats par statut
+            status_counts_with_extras[cat] = status_counts_with_extras.get(cat, 0) + cnt
+            # Pour "Bénévole", additionne aussi dans la ligne bénévole
+            if cat == "Bénévole":
+                status_counts_with_extras["Bénévole"] = status_counts_with_extras.get("Bénévole", 0) + cnt
+
         return JsonResponse({
             'success': True,
             'stats': {
-                'total_meals': total_meals,
-                'by_status': status_counts,
+                'total_meals': total_meals_with_extras,
+                'by_status': status_counts_with_extras,
                 'by_user': user_counts,
-                'extras': extras_counts          # <-- ajout
+                'extras': extras_counts
             }
         })
     except Exception as e:
