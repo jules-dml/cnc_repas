@@ -802,26 +802,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 </tr>
             `;
         }
-        // ajout des extras si présents
-        if (stats.extras) {
-            if (stats.extras.EDS !== undefined) {
-                html += `
-                    <tr>
-                        <td>EDS</td>
-                        <td>${stats.extras.EDS}</td>
-                    </tr>
-                `;
-            }
-            if (stats.extras.Autre !== undefined) {
-                html += `
-                    <tr>
-                        <td>Autre</td>
-                        <td>${stats.extras.Autre}</td>
-                    </tr>
-                `;
-            }
-        }
-
+        
         html += `
                         </tbody>
                     </table>
@@ -1373,4 +1354,24 @@ document.addEventListener('DOMContentLoaded', function() {
             dropdown.appendChild(option);
         });
     }
+
+
+    
+    // Ajout de l'id dans le menu déroulant d'ajout de réservation
+    function populateUserDropdown(users) {
+        const dropdown = document.getElementById('userDropdown');
+        dropdown.innerHTML = '<option value="" disabled selected>Choisir un utilisateur</option>';
+        users.forEach(user => {
+            const option = document.createElement('option');
+            option.value = user.id;
+            option.setAttribute('data-status', user.status);
+            if (user.user_id) {
+                option.textContent = `[${user.user_id}] ${user.name}`;
+            } else {
+                option.textContent = user.name;
+            }
+            dropdown.appendChild(option);
+        });
+    }
+
 });
