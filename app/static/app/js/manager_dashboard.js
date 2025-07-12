@@ -847,13 +847,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
             </div>
         `;
-        
-        // Calculer total incluant extras
-        const extrasTotal = (stats.extras?.EDS || 0) + (stats.extras?.Autre || 0);
-        html = html.replace(
-            `<h3>${stats.total_meals}</h3>`,
-            `<h3>${stats.total_meals + extrasTotal}</h3>`
-        );
 
         statsContainer.innerHTML = html;
     }

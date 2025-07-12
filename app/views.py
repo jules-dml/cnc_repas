@@ -678,37 +678,6 @@ def export_to_pdf(reservations, start_date=None, end_date=None, extras_counts=No
     elements.append(Paragraph(" ", normal_style))
     elements.append(Paragraph(" ", normal_style))
     
-    # Create table data for reservations list
-    elements.append(Paragraph("Liste détaillée des réservations:", subtitle_style))
-    data = [['ID', 'Date', 'Nom', 'Status']]  # Header row
-    
-    for reservation in reservations:
-        # Use 'Bénévole' status if benevole flag is True, otherwise use user's status
-        status = "Bénévole" if reservation.benevole else reservation.user.status
-        data.append([
-            reservation.user.user_id,
-            reservation.date.strftime('%d/%m/%Y'),
-            reservation.user.name,
-            status,
-        ])
-    
-    # Create table
-    table = Table(data, repeatRows=1)
-    
-    # Add style to table
-    table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('BACKGROUND', (0, 1), (-1, -1), colors.white),
-        ('GRID', (0, 0), (-1, -1), 1, colors.black),
-    ]))
-    
-    # Add the table to the elements list
-    elements.append(table)
-    
     # Build the PDF document
     doc.build(elements)
     
